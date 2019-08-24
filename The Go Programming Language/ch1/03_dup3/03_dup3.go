@@ -2,6 +2,7 @@ package main
 
 // Learning go
 // dup3: print lines appearing more than once from a list of provided files with filename and count per file
+// exercise 1.4 in "The Go Programming Language"
 //
 // 2019-08-24	PV
 
