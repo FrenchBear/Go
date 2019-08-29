@@ -1,5 +1,5 @@
 // lissajous.go
-// The Go Programming Language, chapter 2
+// The Go Programming Language, chapter 1.4
 //
 // 2019-08-24	PV
 
@@ -15,11 +15,11 @@ import (
 	"os"
 )
 
-var palette = []color.Color{color.Black, color.White}
+var palette = []color.Color{color.Black, color.RGBA{0x00, 0x80, 0x00, 0xFF}}
 
 const (
 	blackIndex = 0 // in palette
-	whiteIndex = 1
+	penIndex   = 1
 )
 
 func main() {
@@ -43,7 +43,7 @@ func lissajous(out io.Writer) {
 		for t := 0.0; t < cycles*2*math.Pi; t += res {
 			x := math.Sin(t)
 			y := math.Sin(t*freq + phase)
-			img.SetColorIndex(size+int(x*size+0.5), size+int(y*size+0.5), whiteIndex)
+			img.SetColorIndex(size+int(x*size+0.5), size+int(y*size+0.5), penIndex)
 		}
 		phase += 0.1
 		anim.Delay = append(anim.Delay, delay)
