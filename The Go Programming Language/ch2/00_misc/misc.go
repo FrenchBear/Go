@@ -11,8 +11,8 @@ func main() {
 	fmt.Println("r =", r)
 
 	// Print a pointer
-	p := &r
-	fmt.Println(p) // 0xc000012098
+	pr := &r
+	fmt.Println(pr) // 0xc000012098
 
 	// Difference of address when it leaks or not
 	pv := loc1()
@@ -35,18 +35,37 @@ func main() {
 
 	// Test Fibonacci generator
 	fiboGen := makeFiboGen()
-	for i := 1; i < 10; i++ {
+	for i := 1; i <= 20; i++ {
 		fmt.Printf("%d ", fiboGen())
 	}
 	fmt.Println()
 
+	// Test Fibonacci memoizer
+	f20 := fiboMem(20)
+	fmt.Println("Fibo(20):", f20)
+
+	// Tests of recivers and interfaces
 	d := dog{"Cubitus"}
 	c := cat{"Gros minet"}
 	b := bear{"Baloo"}
-	crieMeute(&d, &c, b) // Can't use a pointer receiver with an object
-	crieMeute(&b)        // But can use an object receiver with a pointer
+	k := duck{"Donald"}
+	//p := puppy{dog{"Dago"}}
+	var p puppy
+	p.name = "Dago"
+	crieMeute(&d, &c, b, &p) // Can't use a pointer receiver with an object
+	crieMeute(&b)            // But can use an object receiver with a pointer
+	cri(&k)
+	// Test meute which is an array of animal interface that itself implements animal interface
+	var m meute
+	m.animal = []animal{&d, &c, &b}
+	crieMeute(&p, &m)
+
+	dm := dog{"Medor"}
+	ta := []animal{&d, &dm}
+	crieMeute(ta...) // Expansion of array during call
 }
 
+// Variadic function
 func crieMeute(animals ...animal) {
 	for _, a := range animals {
 		a.cri()
@@ -106,11 +125,13 @@ func loc2() {
 }
 
 // Fibonacci generator
+// Returns a function that captures its state in local variables
 func makeFiboGen() func() uint {
 	last := 1
 	x1 := uint(1)
 	x2 := uint(1)
 	return func() uint {
+		// The first two values are not computed but returned directly
 		if last <= 2 {
 			last++
 			return 1
@@ -118,6 +139,18 @@ func makeFiboGen() func() uint {
 		x1, x2 = uint(x1+x2), x1
 		return x1
 	}
+}
+
+// Recursive computation of Fionacci sequence using a memoizer
+var fiboMemoizer = map[uint64]uint64{1: 1, 2: 1}
+
+func fiboMem(n uint64) uint64 {
+	if s, ok := fiboMemoizer[n]; ok {
+		return s
+	}
+	s := fiboMem(n-1) + fiboMem(n-2)
+	fiboMemoizer[n] = s
+	return s
 }
 
 type cat struct {
@@ -132,24 +165,55 @@ type bear struct {
 	name string
 }
 
+type duck struct {
+	name string
+}
+
 // Method with a pointer reveiver
 func (d *dog) cri() {
 	fmt.Println(d.name, "Ouah!")
 }
 
 // Simple function
-func cri() {
+func (c *cat) cri() {
 	fmt.Println(c.name, "Miaou!")
 }
 
 // Method with an object receiver
+// Beware, method gets a copy of a the receiver and can't update it
 func (b bear) cri() {
 	fmt.Println(b.name, "Grrr!")
+}
+
+func cri(d *duck) {
+	fmt.Println(d.name, "Quack!")
 }
 
 // An interface is just a list of functions
 // How it's implement does not matter as long as it exists
 // Both dog, bear and cat implement this interface
+// But it must be implemented through a method, duck does not implement this interface
 type animal interface {
 	cri()
+}
+
+// Can define an array of interfaces
+type meute struct {
+	animal []animal
+}
+
+// That itself implement the interface
+func (m *meute) cri() {
+	for _, a := range m.animal {
+		a.cri()
+	}
+}
+
+// Inheritance
+type puppy struct {
+	dog
+}
+
+func (p *puppy) cri() {
+	fmt.Println(p.name, "Wif!")
 }
