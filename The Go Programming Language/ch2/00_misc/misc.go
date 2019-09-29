@@ -43,7 +43,8 @@ func main() {
 	d := dog{"Cubitus"}
 	c := cat{"Gros minet"}
 	b := bear{"Baloo"}
-	crieMeute(&d, &c, b)
+	crieMeute(&d, &c, b) // Can't use a pointer receiver with an object
+	crieMeute(&b)        // But can use an object receiver with a pointer
 }
 
 func crieMeute(animals ...animal) {
@@ -131,19 +132,24 @@ type bear struct {
 	name string
 }
 
+// Method with a pointer reveiver
 func (d *dog) cri() {
 	fmt.Println(d.name, "Ouah!")
 }
 
-func (c *cat) cri() {
+// Simple function
+func cri() {
 	fmt.Println(c.name, "Miaou!")
 }
 
-// Receiver is not a pointer for bear
+// Method with an object receiver
 func (b bear) cri() {
 	fmt.Println(b.name, "Grrr!")
 }
 
+// An interface is just a list of functions
+// How it's implement does not matter as long as it exists
+// Both dog, bear and cat implement this interface
 type animal interface {
 	cri()
 }
