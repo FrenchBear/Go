@@ -4,7 +4,10 @@
 
 package main
 
-import "fmt"
+import (
+	"fmt"
+	"strings"
+)
 
 func main() {
 	r := getR()
@@ -63,6 +66,19 @@ func main() {
 	dm := dog{"Medor"}
 	ta := []animal{&d, &dm}
 	crieMeute(ta...) // Expansion of array during call
+
+	// Strings
+	fmt.Println(
+		strings.Contains("Aé♫山𝄞🐗", "♫山𝄞"),               // true
+		strings.Count("Aé♫山𝄞🐗Aé♫山𝄞🐗", "𝄞"),              // 2
+		strings.HasPrefix("♫山𝄞🐗", "♫山"),                 // true
+		strings.HasSuffix("♫山𝄞🐗", "𝄞🐗"),                 // true
+		strings.Index("♫山𝄞🐗", "𝄞"),                      // 6
+		strings.Join([]string{"♫", "山", "𝄞", "🐗"}, "●"), // ♫●山●𝄞●🐗
+		strings.Repeat("♫", 5),                          // ♫♫♫♫♫
+		strings.Replace("♫山♫🐗♫", "♫", "♪", 2),           // ♪山♪🐗♫
+		strings.Split("A●é●♫●山●𝄞●🐗", "●"),               // [A é ♫ 山 𝄞 🐗]
+	)
 }
 
 // Variadic function
