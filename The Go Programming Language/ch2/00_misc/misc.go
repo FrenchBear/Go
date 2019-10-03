@@ -79,6 +79,17 @@ func main() {
 		strings.Replace("♫山♫🐗♫", "♫", "♪", 2),           // ♪山♪🐗♫
 		strings.Split("A●é●♫●山●𝄞●🐗", "●"),               // [A é ♫ 山 𝄞 🐗]
 	)
+
+	// new, make and delete
+	pi := new(int) // Returns int *
+	*pi = 2
+
+	pj := make([]int, 5, 10) // Create array of 10 ints, sclice it to first 5 ints
+	pj[0] = 3
+
+	col := make(map[string]string)
+	col["red"] = "rouge"
+	delete(col, "red")
 }
 
 // Variadic function
@@ -144,8 +155,7 @@ func loc2() {
 // Returns a function that captures its state in local variables
 func makeFiboGen() func() uint {
 	last := 1
-	x1 := uint(1)
-	x2 := uint(1)
+	x1, x2 := uint(1), uint(1)
 	return func() uint {
 		// The first two values are not computed but returned directly
 		if last <= 2 {
