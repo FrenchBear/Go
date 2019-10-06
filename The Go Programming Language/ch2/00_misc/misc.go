@@ -6,6 +6,7 @@ package main
 
 import (
 	"fmt"
+	"math"
 	"strings"
 )
 
@@ -25,29 +26,37 @@ func main() {
 	fmt.Println("v3:", &v3)
 
 	// Function type
-	fmt.Printf("%T\n", sum)
+	fmt.Printf("%T\n", sum) // func(...int) int
 
 	// Test half
 	h1a, h1b := half(1)
 	h2a, h2b := half(2)
-	fmt.Println("half(1):", h1a, h1b)
-	fmt.Println("half(2):", h2a, h2b)
+	fmt.Println("half(1):", h1a, h1b) // 0 false
+	fmt.Println("half(2):", h2a, h2b) // 1 true
 
 	// Test max
-	fmt.Println("max:", max(3.14, -2.78, 1.73, 1.41, 6.28, 0, 3.33))
+	fmt.Println("max:", maxFloat64(3.14, -2.78, 1.73, 1.41, 6.28, 0, 3.33)) // 6.28
+	fmt.Println("max (no arg):", maxFloat64())                              // NaN
 
 	// Test Fibonacci generator
 	fiboGen := makeFiboGen()
+	var f20 uint64
 	for i := 1; i <= 20; i++ {
-		fmt.Printf("%d ", fiboGen())
+		f20 = fiboGen()
+		fmt.Printf("%d ", f20)
 	}
 	fmt.Println()
+	fmt.Println("fiboGen(20):", f20)
 
 	// Test Fibonacci memoizer
-	f20 := fiboMem(20)
-	fmt.Println("Fibo(20):", f20)
+	f20 = fiboMem(20)
+	fmt.Println("fiboMem(20):", f20)
 
-	// Tests of recivers and interfaces
+	// Test Fibonacci direct
+	f20 = fiboDir(20)
+	fmt.Println("fiboDir(20):", f20)
+
+	// Tests of receivers and interfaces
 	d := dog{"Cubitus"}
 	c := cat{"Gros minet"}
 	b := bear{"Baloo"}
@@ -121,8 +130,11 @@ func half(n int) (int, bool) {
 
 // Write a function with one variadic parameter
 // that finds the greatest number in a list of numbers.
-func max(numbers ...float64) float64 {
-	m := -1e100
+func maxFloat64(numbers ...float64) float64 {
+	if len(numbers) == 0 {
+		return math.NaN() // It's a function, not a constant
+	}
+	m := -math.MaxFloat64
 	for _, f := range numbers {
 		if f > m {
 			m = f
@@ -153,21 +165,21 @@ func loc2() {
 
 // Fibonacci generator
 // Returns a function that captures its state in local variables
-func makeFiboGen() func() uint {
+func makeFiboGen() func() uint64 {
 	last := 1
-	x1, x2 := uint(1), uint(1)
-	return func() uint {
+	x1, x2 := uint64(1), uint64(1)
+	return func() uint64 {
 		// The first two values are not computed but returned directly
 		if last <= 2 {
 			last++
 			return 1
 		}
-		x1, x2 = uint(x1+x2), x1
+		x1, x2 = x1+x2, x1
 		return x1
 	}
 }
 
-// Recursive computation of Fionacci sequence using a memoizer
+// Recursive computation of Fibonacci sequence using a memoizer
 var fiboMemoizer = map[uint64]uint64{1: 1, 2: 1}
 
 func fiboMem(n uint64) uint64 {
@@ -177,6 +189,15 @@ func fiboMem(n uint64) uint64 {
 	s := fiboMem(n-1) + fiboMem(n-2)
 	fiboMemoizer[n] = s
 	return s
+}
+
+func fiboDir(n uint) uint64 {
+	x, y := uint64(1), uint64(1)
+	for n > 2 {
+		x, y = x+y, x
+		n--
+	}
+	return x
 }
 
 type cat struct {
@@ -195,7 +216,7 @@ type duck struct {
 	name string
 }
 
-// Method with a pointer reveiver
+// Method with a pointer receiver
 func (d *dog) cri() {
 	fmt.Println(d.name, "Ouah!")
 }

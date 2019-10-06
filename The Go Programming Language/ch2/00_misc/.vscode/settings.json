@@ -13,5 +13,13 @@
         "statusBarItem.hoverBackground": "#ef7853",
         "statusBar.foreground": "#e7e7e7"
     },
-    "peacock.color": "#eb5424"
+    "peacock.color": "#eb5424",
+    "spellright.language": [
+        "en"
+    ],
+    "spellright.documentTypes": [
+        "markdown",
+        "latex",
+        "plaintext"
+    ]
 }
