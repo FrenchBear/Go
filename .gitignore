@@ -13,3 +13,6 @@
 *.out
 
 pkg/
+
+# A file for debug
+__debug_bin
