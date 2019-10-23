@@ -14,10 +14,12 @@ import (
 
 func main() {
 	if len(os.Args) == 1 {
+		fmt.Println("Analyzing stdin")
 		countWords(os.Stdin)
 	} else if len(os.Args) == 2 {
 		f, err := os.Open(os.Args[1])
 		if err == nil {
+			fmt.Printf("Analyzing file '%s'\n", os.Args[1])
 			countWords(f)
 		} else {
 			fmt.Printf("Error opening file '%s': %v\n", os.Args[1], err)
