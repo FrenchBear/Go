@@ -17,7 +17,7 @@ import (
 	"golang.org/x/net/html" // Need to run 'go get golang.org/x/net/html'
 )
 
-const urlDefault = `https://xkcd.com/`
+const urlDefault = `https://xkcd.com`
 
 func main() {
 	var url string
@@ -31,7 +31,8 @@ func main() {
 	}
 	pageReader, err := getPageReader(url)
 	if err != nil {
-		return
+		fmt.Fprintf(os.Stderr, "counttags: %v\n", err)
+		os.Exit(1)
 	}
 	//defer func() { pageReader.Close() }()
 	doc, err := html.Parse(pageReader)
@@ -80,6 +81,10 @@ func getPageReader(url string) (io.ReadCloser, error) {
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "counttags: error %v\n", err)
 		return nil, err
+	}
+	if resp.StatusCode != http.StatusOK {
+		resp.Body.Close()
+		return nil, fmt.Errorf("counttags: error accessing %s: %s", url, resp.Status)
 	}
 	return resp.Body, nil
 }

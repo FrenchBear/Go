@@ -31,7 +31,8 @@ func main() {
 	}
 	page, err := getPage(url)
 	if err != nil {
-		return
+		fmt.Fprintf(os.Stderr, "counttags: %v\n", err)
+		os.Exit(1)
 	}
 	pageReader := bytes.NewReader(page)
 	doc, err := html.Parse(pageReader)
@@ -56,6 +57,10 @@ func getPage(url string) ([]byte, error) {
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "counttags: error %v\n", err)
 		return nil, err
+	}
+	if resp.StatusCode != http.StatusOK {
+		resp.Body.Close()
+		return nil, fmt.Errorf("counttags: error accessing %s: %s", url, resp.Status)
 	}
 	body, err := ioutil.ReadAll(resp.Body)
 	resp.Body.Close()
