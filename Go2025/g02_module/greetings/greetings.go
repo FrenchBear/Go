@@ -1,3 +1,8 @@
+// g02_module/greetings
+// Learning go, Example of submodule
+//
+// 2025-06-04	PV		First version
+
 package greetings
 
 import "fmt"
