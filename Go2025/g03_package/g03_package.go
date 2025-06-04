@@ -4,7 +4,7 @@
 //
 // 2025-06-04	PV		First version
 
-package g03package
+package main
 
 import "fmt"
 

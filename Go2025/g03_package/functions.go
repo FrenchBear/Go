@@ -4,10 +4,17 @@
 //
 // 2025-06-04	PV		First version
 
-package g03package
+package main
 
 import "fmt"
 
+// The function is exported, so it starts with a capital letter
 func Bonjour() {
-	fmt.Println("Bonjour à tous")
+	//fmt.Println("Bonjour à tous")
+	salut()
+}
+
+// Not exported
+func salut() {
+	fmt.Println("Salut à tous!")
 }
