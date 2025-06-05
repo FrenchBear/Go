@@ -11,7 +11,10 @@
             "problemMatcher": [
                 "$go"
             ],
-            "group": "build",
+            "group": {
+                "kind": "build",
+                "isDefault": true
+            }
         },
         {
             "label": "go: run",

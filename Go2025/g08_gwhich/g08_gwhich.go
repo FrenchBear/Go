@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"runtime"
 )
 
 func main() {
@@ -20,23 +21,25 @@ func main() {
 	}
 	file := arguments[1]
 	path := os.Getenv("PATH")
-	fmt.Println(path)
 	pathSplit := filepath.SplitList(path)
 	for _, directory := range pathSplit {
 		fullPath := filepath.Join(directory, file)
-		fmt.Println(fullPath)
+
 		// Does it exist?
 		fileInfo, err := os.Stat(fullPath)
 		if err == nil {
 			mode := fileInfo.Mode()
-			fmt.Printf("********************* Found: %v  %v\n", mode, mode.IsRegular())
+			//fmt.Printf("********************* Found: %v  %v\n", mode, mode.IsRegular())
 			// Is it a regular file?
 			if mode.IsRegular() {
-				fmt.Printf("********************* Regular: %v\n", mode)
-				// Is it executable?
-				if mode&0111 != 0 {
-					fmt.Println(fullPath)
-					return
+				//fmt.Printf("********************* Regular: %v\n", mode)
+				if runtime.GOOS == "windows" {
+					fmt.Println("Found:", fullPath)
+				} else {
+					// Is it executable?
+					if mode&0111 != 0 {
+						fmt.Println("Found:", fullPath)
+					}
 				}
 			}
 		}
