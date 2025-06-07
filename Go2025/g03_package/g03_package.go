@@ -1,4 +1,4 @@
-// g03_package
+// g03_package.go
 // Learning go, example of source code split in two files
 // Main source (entry point)
 //

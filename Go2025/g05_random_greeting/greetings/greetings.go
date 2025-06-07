@@ -1,4 +1,4 @@
-// g05_random_greeting/greetings
+// g05_random_greeting/greetings.go
 // Learning go, Example of submodule
 //
 // 2025-06-04	PV		First version

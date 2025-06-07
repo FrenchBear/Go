@@ -1,4 +1,4 @@
-// g01_package
+// g01_package.go
 // Learning go, basic example of package referencing an external library
 // https://go.dev/doc/tutorial/getting-started
 // Need to run "go mod tidy" to update go.mod

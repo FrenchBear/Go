@@ -1,4 +1,4 @@
-// g04_error
+// g04_error.go
 // Learning go, Update of g02_module, but Hell function can now return an error
 // need to run "go mod edit -replace example.com/greetings=./greetings"
 // https://go.dev/doc/tutorial/handle-errors

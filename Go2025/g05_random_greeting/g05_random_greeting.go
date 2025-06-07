@@ -1,4 +1,4 @@
-// g05_random_greeting
+// g05_random_greeting.go
 // Learning go, greetings.Hello can return different greetings
 // https://go.dev/doc/tutorial/random-greeting
 //

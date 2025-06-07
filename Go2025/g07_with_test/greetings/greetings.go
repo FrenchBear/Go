@@ -1,4 +1,4 @@
-// g07_with_test/greetings
+// g07_with_test/greetings.go
 // Learning go, Add a test
 // https://go.dev/doc/tutorial/add-a-test
 //

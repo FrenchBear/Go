@@ -1,4 +1,4 @@
-// g03_package
+// functions.go
 // Learning go, example of source code split in two files
 // Second source, must have the same package name
 //

@@ -1,4 +1,4 @@
-// g04_error/greetings
+// g04_error/greetings.go
 // Learning go, Example of submodule
 //
 // 2025-06-04	PV		First version

@@ -1,4 +1,4 @@
-// g02_module/greetings
+// g02_module/greetings.go
 // Learning go, Example of submodule
 //
 // 2025-06-04	PV		First version

@@ -1,4 +1,4 @@
-// g06_multiple_greeting/greetings
+// g06_multiple_greeting/greetings.go
 // Learning go, Return greetings for multiple people
 // https://go.dev/doc/tutorial/greetings-multiple-people
 //
