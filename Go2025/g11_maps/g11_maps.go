@@ -11,11 +11,12 @@ import (
 
 func main() {
 	// Map literal
-	m := map[string]int {
+	m := map[string]int{
 		"key0": 42,
 		"key1": -1,
 		"key2": 123,
 	}
+	m["key5"] = 555
 	fmt.Println(m)
 
 	v, ok := m["key2"]
@@ -33,11 +34,17 @@ func main() {
 	}
 
 	// Iterating over a map. By design, order of keys is randomized
-	for k,v := range m {
+	for k, v := range m {
 		fmt.Println(k, "->", v)
 	}
 
 	// Delete the whole map (not just keys/values)
-	m = nil;
+	m = nil
+
+	// Dynamic creation
+	n := make(map[int]string)
+	n[1] = "One"
+	n[2] = "Two"
+	n[3] = "Three"
 
 }
