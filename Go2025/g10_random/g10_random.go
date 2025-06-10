@@ -1,7 +1,7 @@
 // g10_random.go
 // Learning go, random numbers
 //
-// 2025-06-00	PV		First version
+// 2025-06-09	PV		First version
 
 package main
 
