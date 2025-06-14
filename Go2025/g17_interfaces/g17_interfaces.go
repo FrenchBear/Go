@@ -26,20 +26,24 @@ import (
 	"io"
 	"math"
 	"os"
+	"sort"
 )
 
 func main() {
 	BasicInterfaces()
+	EmptyInterface()
 	StandardLibraryInterfaces()
 	InterfaceComposition()
 	TestingForMocking()
 	TypeAssertionsAndTypesSwitches()
+	SortInterface()
 }
 
 // ------------------------------------------------------------------
 
 func BasicInterfaces() {
 	fmt.Println("------ Basic interface: Defining behavior")
+
 	c := Circle{Radius: 5}
 	r := Rectangle{Width: 3, Height: 4}
 	Measure(c)
@@ -49,6 +53,19 @@ func BasicInterfaces() {
 	TestAndConvert(c)
 	TestAndConvert(r)
 	TestAndConvert(nil)
+
+	// Syntax to convert interface -> type is only applicable to interface, it's not valid for objects.
+	// Following line does not compile:
+	// sh, ok := c.(Shape)
+	// if ok {
+	// 	   fmt.Println("sh:", sh)
+	// } else {
+	// 	   fmt.Println("c does not support Shape interface")
+	// }
+
+	// Testing if an object implements an interface occurs at compile-time.
+	// Next line would cause a compilation error if Circle does not support Shape interface
+	var _ Shape = Circle{}
 }
 
 func TestAndConvert(s Shape) {
@@ -132,6 +149,41 @@ func Measure(s Shape) {
 
 // ------------------------------------------------------------------
 
+func EmptyInterface() {
+	fmt.Println("\n------ Empty Interface")
+
+	r := Rectangle{Width: 3, Height: 4}
+	TestFromEmptyInterface(r)
+
+	anInt := returnNumber()
+	number := anInt.(int)
+	number++
+	fmt.Println("number:", number)
+
+	// This type assertion will fail
+	value, ok := anInt.(int64)
+	if ok {
+		fmt.Println("Type assertion successful: ", value)
+	} else {
+		fmt.Println("Type assertion failed!")
+	}
+}
+
+func TestFromEmptyInterface(x interface{}) {
+	if _, ok := x.(Rectangle); ok {
+		fmt.Println("x is a Rectangle!")
+	} else {
+		fmt.Println("x is not a Rectangle")
+	}
+
+}
+
+func returnNumber() interface{} {
+	return 12
+}
+
+// ------------------------------------------------------------------
+
 // Go's standard library extensively uses interfaces. io.Reader and io.Writer are prime examples, enabling generic I/O
 // operations.
 
@@ -145,8 +197,6 @@ func Measure(s Shape) {
 
 // processData takes an io.Reader and an io.Writer
 func processData(reader io.Reader, writer io.Writer) error {
-	fmt.Println("\n------ Standard Library Interfaces")
-
 	// Copy data from reader to writer
 	_, err := io.Copy(writer, reader)
 	if err != nil {
@@ -156,6 +206,8 @@ func processData(reader io.Reader, writer io.Writer) error {
 }
 
 func StandardLibraryInterfaces() {
+	fmt.Println("\n------ Standard Library Interfaces")
+
 	// Example 1: Reading from a string and writing to standard output
 	stringReader := bytes.NewBufferString("Hello from string!\n")
 	fmt.Println("--- String to Stdout ---")
@@ -374,4 +426,48 @@ func TypeAssertionsAndTypesSwitches() {
 	if textMsg, ok := msg3.(TextMessage); ok {
 		fmt.Printf("Directly accessed TextMessage: %s\n", textMsg.Text)
 	}
+}
+
+// ------------------------------------------------------------------
+
+// The sort package defines the sort.Interface as follows:
+// type Interface interface {
+//     // Len is the number of elements in the collection.
+//     Len() int
+//     // Less reports whether the element with index i should sort before the element with index j.
+//     Less(i, j int) bool
+//     // Swap swaps the elements with indexes i and j.
+//     Swap(i, j int)
+// }
+
+// Implementation of sort.Interface for Rectangle, to sort by area
+
+type RectangleSlice []Rectangle
+
+func (rs RectangleSlice) Len() int {
+	return len(rs)
+}
+
+func (rs RectangleSlice) Less(i, j int) bool {
+	return rs[i].Area() < rs[j].Area()
+}
+
+func (rs RectangleSlice) Swap(i, j int) {
+	rs[i], rs[j] = rs[j], rs[i]
+}
+
+func SortInterface() {
+	fmt.Println("\n------ Sort interface")
+
+	data := []Rectangle{
+		{3.0, 4.0},
+		{3.5, 4.0},
+		{0.5, 0.5},
+		{2.0, 2.0},
+		{1.0, 1.0},
+	}
+
+	fmt.Println("Before:", data)
+	sort.Sort(RectangleSlice(data)) // Cast
+	fmt.Println("After:", data)
 }
