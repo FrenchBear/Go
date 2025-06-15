@@ -37,6 +37,7 @@ func main() {
 	TestingForMocking()
 	TypeAssertionsAndTypesSwitches()
 	SortInterface()
+	CombiningInterfaces()
 }
 
 // ------------------------------------------------------------------
@@ -470,4 +471,89 @@ func SortInterface() {
 	fmt.Println("Before:", data)
 	sort.Sort(RectangleSlice(data)) // Cast
 	fmt.Println("After:", data)
+}
+
+// ------------------------------------------------------------------
+
+type IntA interface {
+	foo()
+}
+
+type IntB interface {
+	bar()
+}
+
+// IntC interface combines interfaces IntA and IntB. If you implement IntA and IntB for a data type, then this data type
+// implicitly satisfies IntC.
+type IntC interface {
+	IntA
+	IntB
+}
+
+type a struct {
+	XX int
+	YY int
+}
+
+type b struct {
+	AA string
+	XX int
+}
+
+// Structure c has two fields
+type c struct {
+	A a
+	B b
+}
+
+// ---
+
+func processA(s IntA) {
+	fmt.Printf("%T\n", s)
+}
+
+// ---
+// struct c satifies IntA and IntB
+// Satisfying IntA
+func (varC c) foo() {
+	fmt.Println("Foo Processing", varC)
+}
+
+// Satisfying IntB
+func (varC c) bar() {
+	fmt.Println("Bar Processing", varC)
+}
+
+// ---
+// Structure compose gets the fields of structure a
+// This new structure uses an anonymous structure (a), which means that it gets the fields of that anonymous structure.
+type compose struct {
+	field1 int
+	a
+}
+
+// ---
+
+// Different structures can have methods with the same name
+func (A a) A() {
+	fmt.Println("Function A() for A")
+}
+func (B b) A() {
+	fmt.Println("Function A() for B")
+}
+
+// ---
+
+func CombiningInterfaces() {
+	fmt.Println("\n------ Combining interfaces")
+	var iC c = c{a{120, 12}, b{"-12", -12}}
+	iC.A.A()
+	iC.B.A()
+
+	iComp := compose{123, a{456, 789}}
+	fmt.Println(iComp.XX, iComp.YY, iComp.field1)
+	// When using an anonymous structure inside another structure, as we do with a{456, 789}, you can access the fields of
+	// the anonymous structure, which is the a{456, 789} structure, directly as iComp.XX and iComp.YY.
+	iC.bar()
+	processA(iC)
 }
