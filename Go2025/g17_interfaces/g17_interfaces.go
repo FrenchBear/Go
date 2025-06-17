@@ -2,6 +2,7 @@
 // Learning go, Interfaces
 //
 // 2025-06-14	PV		First version
+// 2025-06-18	PV		Error interface
 
 // Key Principles of Go Interfaces:
 // - Implicit Implementation: No implements keyword. If a type has the methods of an interface, it implicitly satisfies
@@ -38,6 +39,7 @@ func main() {
 	TypeAssertionsAndTypesSwitches()
 	SortInterface()
 	CombiningInterfaces()
+	TestErrorInterface()
 }
 
 // ------------------------------------------------------------------
@@ -546,6 +548,7 @@ func (B b) A() {
 
 func CombiningInterfaces() {
 	fmt.Println("\n------ Combining interfaces")
+
 	var iC c = c{a{120, 12}, b{"-12", -12}}
 	iC.A.A()
 	iC.B.A()
@@ -556,4 +559,38 @@ func CombiningInterfaces() {
 	// the anonymous structure, which is the a{456, 789} structure, directly as iComp.XX and iComp.YY.
 	iC.bar()
 	processA(iC)
+}
+
+// ------------------------------------------------------------------
+
+// data type is an interface defined as follows:
+// type error interface {
+//     Error() string
+// }
+
+type TooLargeValue struct {
+	Value int
+}
+
+// Implement error interface
+func (self TooLargeValue) Error() string {
+	return fmt.Sprintf("Value %d too large! (>6)", self.Value)	
+}
+
+func ValidateValue(v int) (int, error) {
+	if v>=1 && v<=6 {
+		return v, nil
+	}
+	return v, TooLargeValue{Value: v}
+}
+
+func TestErrorInterface() {
+	fmt.Println("\n------ Error interface")
+
+	n, err := ValidateValue(12)
+	if err==nil {
+		fmt.Printf("Value %d is Ok\n", n)
+	} else {
+		fmt.Println(err)
+	}
 }

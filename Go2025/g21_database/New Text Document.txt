@@ -1,0 +1,36 @@
+Procedure
+
+In C:\Development\temp: 
+git clone https://github.com/mactsouk/post05.git
+cd post05
+psql -h localhost -p 5432 -U postgres TestDB <create_tables.sql
+Mot de passe pour l'utilisateur postgres : **********
+
+NOTICE:  database "go" does not exist, skipping
+DROP DATABASE
+CREATE DATABASE
+NOTICE:  table "users" does not exist, skipping
+DROP TABLE
+NOTICE:  table "userdata" does not exist, skipping
+DROP TABLE
+Vous êtes maintenant connecté à la base de données « go » en tant qu'utilisateur « postgres ».
+CREATE TABLE
+CREATE TABLE
+
+runpsql
+Server [localhost]:
+Database [postgres]: go
+Port [5432]:
+Username [postgres]:
+Mot de passe pour l'utilisateur postgres : **********
+
+psql (17.5)
+Saisissez « help » pour l'aide.
+
+go=#
+
+
+
+Shell again, install PostGres driver 
+go get github.com/lib/pq
+
