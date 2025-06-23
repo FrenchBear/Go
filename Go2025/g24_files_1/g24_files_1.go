@@ -1,5 +1,6 @@
 // g24_files_1.go
-// Learning go, System programming, files
+// Learning go, System programming, files, io.Reader and io.Writer
+// Note that this is a low level interface, for byte streams, not for specific structs
 //
 // 2025-06-23	PV		First version
 
@@ -15,7 +16,7 @@ import (
 )
 
 func main() {
-	fmt.Println("Go files")
+	fmt.Println("Go files #1, io.Reader and io.Writer")
 
 	//test_s1_s2()
 	test_simple()
@@ -135,7 +136,7 @@ type HashedFile struct {
 // HashedFileReadWriter wraps HashedFile to provide Reader/Writer capabilities.
 // It uses an internal buffer to hold the serialized data.
 type HashedFileReadWriter struct {
-	HashedFile HashedFile
+	//HashedFile HashedFile
 	buffer     *bytes.Buffer
 }
 
@@ -143,7 +144,7 @@ type HashedFileReadWriter struct {
 // The initial HashedFile can be empty.
 func NewHashedFileReadWriter(hf HashedFile) *HashedFileReadWriter {
 	return &HashedFileReadWriter{
-		HashedFile: hf,
+		//HashedFile: hf,
 		buffer:     new(bytes.Buffer),
 	}
 }
@@ -153,14 +154,7 @@ func NewHashedFileReadWriter(hf HashedFile) *HashedFileReadWriter {
 // or by explicitly serializing the HashedFile.
 func (hfrw *HashedFileReadWriter) Read(p []byte) (n int, err error) {
 	if hfrw.buffer.Len() == 0 {
-		// If the buffer is empty, try to serialize the HashedFile
-		// This makes it so you can call Read directly after creating
-		// the HashedFileReadWriter with a populated HashedFile.
-		data, err := json.Marshal(hfrw.HashedFile)
-		if err != nil {
-			return 0, err
-		}
-		hfrw.buffer.Write(data)
+		panic("Buffer is empty")
 	}
 	return hfrw.buffer.Read(p)
 }
@@ -172,18 +166,6 @@ func (hfrw *HashedFileReadWriter) Write(p []byte) (n int, err error) {
 	n, err = hfrw.buffer.Write(p)
 	if err != nil {
 		return n, err
-	}
-
-	// Attempt to unmarshal the buffer content into HashedFile
-	// This approach assumes the entire JSON is written in one go,
-	// or in a way that allows for eventual complete unmarshaling.
-	// For streaming JSON, a more robust parser would be needed.
-	var tempHashedFile HashedFile
-	if json.Unmarshal(hfrw.buffer.Bytes(), &tempHashedFile) == nil {
-		hfrw.HashedFile = tempHashedFile
-		// Optionally, clear the buffer after successful unmarshal if you
-		// expect new data to be written.
-		// hfrw.buffer.Reset()
 	}
 	return n, nil
 }
@@ -220,7 +202,7 @@ func test_simple() {
 		return
 	}
 
-	fmt.Printf("HashedFile after writing: %+v\n", hfrw1.HashedFile)
+	//fmt.Printf("HashedFile after writing: %+v\n", hfrw1.HashedFile)
 
 	// Now read from it
 	readBuffer := make([]byte, 1024)
@@ -238,6 +220,8 @@ func test_simple() {
 		return
 	}
 	fmt.Printf("HashedFile unmarshaled from read data: %+v\n", hf1Read)
+
+	/*
 
 	// --- Example 2: Creating with a HashedFile and then Reading ---
 	fmt.Println("\n--- Example 2: Creating with a HashedFile and then Reading ---")
@@ -290,6 +274,8 @@ func test_simple() {
 	}
 	fmt.Printf("Copied %d bytes\n", bytesCopied)
 	fmt.Printf("HashedFile in destination after copy: %+v\n", hfrwDest.HashedFile)
+
+	*/
 }
 
 /*
