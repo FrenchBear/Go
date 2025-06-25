@@ -9,15 +9,17 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"strings"
 	"unicode/utf8"
 )
 
 func main() {
-	fmt.Println("Go readSize")
+	//fmt.Println("Go TextAutoDecode")
 
 	test(`C:\DocumentsOD\Doc tech\Encodings\prenoms-utf8bom.txt`)
 	test(`C:\DocumentsOD\Doc tech\Encodings\prenoms-utf16lebom.txt`)
 	test(`C:\DocumentsOD\Doc tech\Encodings\prenoms-utf16bebom.txt`)
+	test(`C:\DocumentsOD\Doc tech\Encodings\prenoms-utf8.txt`)
 }
 
 func test(filename string) {
@@ -28,7 +30,10 @@ func test(filename string) {
 	}
 
 	fmt.Printf("%-65.65s %s\n", filename, strEncoding(tad.Encoding))
-	//if tad.Text
+
+	if !strings.HasPrefix(tad.Text, "juliette sophie brigitte géraldine") {
+		fmt.Println("Wrong prefix:", "«"+tad.Text[:80]+"»")
+	}
 }
 
 const MILLE = 1000
@@ -118,7 +123,7 @@ func ReadTextFile(file string) (TextAutoDecode, error) {
 		}
 
 		if n < MILLE {
-			return TextAutoDecode{Text: s, Encoding: UTF8BOM}, nil
+			return TextAutoDecode{Text: s[3:], Encoding: UTF8BOM}, nil
 		}
 
 		return final_read(&is_buffer_full_read, &buffer_full, f, UTF8BOM)
@@ -152,6 +157,34 @@ func ReadTextFile(file string) (TextAutoDecode, error) {
 		return final_read(&is_buffer_full_read, &buffer_full, f, UTF16BEBOM)
 	}
 
+	// Then check encodings without BOM
+
+	// UTF-8 without BOM?
+	// Note that if string is only ASCII text, then type is assumed ASCII instead of UTF-8
+	s, ok := check_utf8(buffer_1000, n)
+	if ok {
+		if n < 1000 {
+			var e TextFileEncoding
+			if is_ascii_text(&s) {
+				e = ASCII
+			} else {
+				e = UTF8
+			}
+			return TextAutoDecode{Text: s, Encoding: e}, nil
+		} else {
+			// Special case, first 1000 bytes are ASCII so we got there, but after 1000 bytes, we get 8-bit
+			// characters so we can't return if we didn't recognize the whole file as UTF-8
+			tad, err := final_read(&is_buffer_full_read, &buffer_full, f, UTF8)
+			if err == nil {
+				if tad.Encoding != NotText {
+					return tad, err
+				}
+			}
+		}
+
+		// We skip checking UTF-16, since it's a match for UTF-8/ASCII on the furst 1000 chars
+		return final_read(&is_buffer_full_read, &buffer_full, f, EightBit)
+	}
 
 	return TextAutoDecode{Text: "??", Encoding: InProgress}, nil
 }
@@ -159,17 +192,17 @@ func ReadTextFile(file string) (TextAutoDecode, error) {
 // The 75% ASCII test is too restrictive, some valid UTF-8 files are rejected (ex: output of tree command)
 // So we only detect control characters that should not be present in a text file
 // Old text files may contain FF (Form Feed, 12) or VT (Vertical Tab, 11), but it's unlikely for common files
-func no_binary_chars(s *string, also_check_block_c1 bool) bool {
+func contains_binary_chars(s *string, also_check_block_c1 bool) bool {
 	for _, c := range *s {
 		if c < 32 && (c != 9 && c != 10 && c != 13) {
-			return false
+			return true
 		}
 		// If requested, no characters of C1 is accepted (for all encodings but 8-bit)
 		if also_check_block_c1 && c >= 128 && c < 160 {
-			return false
+			return true
 		}
 	}
-	return true
+	return false
 }
 
 // Check that string s doesn't contain a null char and contains at least 75% of ASCII 32..127, CR, LF, TAB
@@ -206,14 +239,15 @@ func final_read(is_buffer_full_read *bool, buffer_full *[]byte, file *os.File, e
 		*is_buffer_full_read = true
 	}
 
-	my_encoding := encoding
 	text := ""
 	switch encoding {
-	case UTF8:
-	case UTF8BOM:
+	case UTF8, UTF8BOM:
 		if utf8.Valid(*buffer_full) {
-			my_encoding = UTF8
-			text = string(*buffer_full)
+			if encoding == UTF8 {
+				text = string(*buffer_full)
+			} else {
+				text = string(*buffer_full)[3:]
+			}
 		} else {
 			return TextAutoDecode{Text: "", Encoding: NotText}, nil
 		}
@@ -223,25 +257,26 @@ func final_read(is_buffer_full_read *bool, buffer_full *[]byte, file *os.File, e
 		if !ok {
 			return TextAutoDecode{Text: "", Encoding: NotText}, nil
 		}
-		text=s
+		text = s
 
 	default:
 		panic("final_read: encoding not supported yet!")
 	}
 
-	check_ascii := my_encoding == UTF8
-	check_75percent_text := my_encoding == EightBit || my_encoding == UTF16BE || my_encoding == UTF16LE
+	check_ascii := encoding == UTF8 // UTF8_BOM is never considered ASCII
+
+	// Without BOM, we add heuristics to be sure that what has been decoded makes sense
+	check_75percent_text := encoding == EightBit || encoding == UTF16BE || encoding == UTF16LE
 
 	// Special heuristics to be sure it's a valid text files
 	if check_75percent_text && !is_75percent_ascii(&text) {
 		return TextAutoDecode{Text: "", Encoding: NotText}, nil
 	}
-
-	if my_encoding != EightBit && !no_binary_chars(&text, my_encoding == EightBit) {
+	if encoding != EightBit && contains_binary_chars(&text, true) {
 		return TextAutoDecode{Text: "", Encoding: NotText}, nil
 	}
 
-	e := my_encoding
+	e := encoding
 	if check_ascii {
 		if is_ascii_text(&text) {
 			e = ASCII
@@ -287,7 +322,11 @@ func check_utf8(buffer_1000 []byte, n int) (string, bool) {
 
 	// Use utf8.Valid to check if the byte slice is valid UTF-8
 	if utf8.Valid(buffer_safe) {
-		// If valid, convert the byte slice to a string and return true
+		s := string(buffer_safe)
+		if contains_binary_chars(&s, true) {
+			return "", false
+		}
+
 		return string(buffer_safe), true
 	}
 
@@ -349,8 +388,6 @@ func utf16_decode(buffer []byte, encoding TextFileEncoding) (string, bool) {
 		}
 		start = 2
 	}
-
-
 
 	const (
 		// 0xd800-0xdc00 encodes the high 10 bits of a pair.
