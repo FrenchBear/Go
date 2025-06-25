@@ -1,25 +1,32 @@
-// g26_read_size.go
-// Learning go, System programming, files, read a limited size from a text file
+// g26_textautodecode.go
+// Learning go, System programming, files, Detect ancoding of a text file
+// Similar to Rust crate TextAutoDecode
 //
 // 2025-06-23	PV		First version
 
 package main
 
 import (
+	"bytes"
 	"fmt"
 	"io"
 	"os"
 	"strings"
 	"unicode/utf8"
+
+	"golang.org/x/text/encoding/charmap"
 )
 
 func main() {
-	//fmt.Println("Go TextAutoDecode")
-
+	test(`C:\DocumentsOD\Doc tech\Encodings\prenoms-empty.txt`)
+	test(`C:\DocumentsOD\Doc tech\Encodings\prenoms-ascii.txt`)
 	test(`C:\DocumentsOD\Doc tech\Encodings\prenoms-utf8bom.txt`)
 	test(`C:\DocumentsOD\Doc tech\Encodings\prenoms-utf16lebom.txt`)
 	test(`C:\DocumentsOD\Doc tech\Encodings\prenoms-utf16bebom.txt`)
 	test(`C:\DocumentsOD\Doc tech\Encodings\prenoms-utf8.txt`)
+	test(`C:\DocumentsOD\Doc tech\Encodings\prenoms-utf16le.txt`)
+	test(`C:\DocumentsOD\Doc tech\Encodings\prenoms-utf16be.txt`)
+	test(`C:\DocumentsOD\Doc tech\Encodings\prenoms-1252.txt`)
 }
 
 func test(filename string) {
@@ -30,9 +37,20 @@ func test(filename string) {
 	}
 
 	fmt.Printf("%-65.65s %s\n", filename, strEncoding(tad.Encoding))
+	if strings.Contains(filename, "empty") {
+		return
+	}
 
-	if !strings.HasPrefix(tad.Text, "juliette sophie brigitte géraldine") {
-		fmt.Println("Wrong prefix:", "«"+tad.Text[:80]+"»")
+	var beginning string
+	if strings.Contains(filename, "ascii") {
+		beginning = "juliette sophie brigitte geraldine"
+	} else {
+		beginning = "juliette sophie brigitte géraldine"
+	}
+
+	if !strings.HasPrefix(tad.Text, beginning) {
+		l := min(len(tad.Text), 80)
+		fmt.Println("Wrong prefix:", "«"+tad.Text[:l]+"»")
 	}
 }
 
@@ -44,7 +62,7 @@ const (
 	NotText    TextFileEncoding = iota // Binary or unrecognized text (for instance contains chars in 0..31 other than \r \n \t)
 	Empty                              // File is empty
 	ASCII                              // Only 7-bit characters
-	EightBit                           // ANSI/Windows 1525 or other
+	EightBit                           // ANSI/Windows 1252 (only this variant is checked)
 	UTF8                               // Plain UTF-8 without BOM
 	UTF8BOM                            // Starts with EF BB BF
 	UTF16LE                            // No BOM but UTF-16 LE detected
@@ -186,6 +204,52 @@ func ReadTextFile(file string) (TextAutoDecode, error) {
 		return final_read(&is_buffer_full_read, &buffer_full, f, EightBit)
 	}
 
+	// UTF-16 LE? (Windows)
+	// Only files with more than 10 characters (20 bytes) are tested and checked for 75% ASCII, or many small binary non text-files will match
+	if n > 20 {
+		s, ok := check_utf16(buffer_1000, n, UTF16LE)
+		if ok {
+			if n < 1000 {
+				return TextAutoDecode{Text: s, Encoding: UTF16LE}, nil
+			}
+
+			return final_read(
+				&is_buffer_full_read,
+				&buffer_full,
+				f,
+				UTF16LE)
+		}
+
+		// UTF-16 BE?
+		s, ok = check_utf16(buffer_1000, n, UTF16BE)
+		if ok {
+			if n < 1000 {
+				return TextAutoDecode{Text: s, Encoding: UTF16BE}, nil
+			}
+			return final_read(
+				&is_buffer_full_read,
+				&buffer_full,
+				f,
+				UTF16BE)
+		}
+	}
+
+	// 8-bit?
+	s, ok = check_eightbit(&buffer_1000, n)
+	if ok {
+		if n < 1000 {
+			return TextAutoDecode{Text: s, Encoding: EightBit}, nil
+		} else {
+			return final_read(
+				&is_buffer_full_read,
+				&buffer_full,
+				f,
+				EightBit)
+		}
+	}
+
+	// None of the encodings worked without error
+
 	return TextAutoDecode{Text: "??", Encoding: InProgress}, nil
 }
 
@@ -254,6 +318,13 @@ func final_read(is_buffer_full_read *bool, buffer_full *[]byte, file *os.File, e
 
 	case UTF16LE, UTF16LEBOM, UTF16BE, UTF16BEBOM:
 		s, ok := utf16_decode(*buffer_full, encoding)
+		if !ok {
+			return TextAutoDecode{Text: "", Encoding: NotText}, nil
+		}
+		text = s
+
+	case EightBit:
+		s, ok := eightbit_decode(*buffer_full)
 		if !ok {
 			return TextAutoDecode{Text: "", Encoding: NotText}, nil
 		}
@@ -360,13 +431,24 @@ func check_utf16(buffer_1000 []byte, n int, encoding TextFileEncoding) (string, 
 	buffer_safe := buffer_1000[:nsafe]
 
 	s, ok := utf16_decode(buffer_safe, encoding)
+	if !ok {
+		return s, ok
+	}
 
-	return s, ok
+	// If there is no BOM, actually UTF-16 BE can be decoded as UTF-16 LE and also the reverse in most of cases.
+	// To be sure there is no confusion, add an extra heuristics to check that content is 75% ASCII
+	if (encoding == UTF16LE || encoding == UTF16BE) && !is_75percent_ascii(&s) {
+		return "", false
+	}
+
+	if !contains_binary_chars(&s, true) {
+		return s, ok
+	}
+	return "", false
 }
 
 func utf16_decode(buffer []byte, encoding TextFileEncoding) (string, bool) {
-
-	// Buffen len must be even for UTF-16
+	// Buffer len must be even for UTF-16
 	if len(buffer)&1 == 1 {
 		return "", false
 	}
@@ -422,6 +504,30 @@ func utf16_decode(buffer []byte, encoding TextFileEncoding) (string, bool) {
 		start += 2
 	}
 	return string(buf), true
+}
+
+func check_eightbit(buffer_1000 *[]byte, _ int) (string, bool) {
+	s, ok := eightbit_decode(*buffer_1000)
+	if ok && is_75percent_ascii(&s) {
+		return s, ok
+	}
+
+	return "", false
+}
+
+func eightbit_decode(buffer []byte) (string, bool) {
+	// Create a new decoder for Windows CP 1252
+	decoder := charmap.Windows1252.NewDecoder()
+
+	// Use ioutil.ReadAll with the decoder to convert the byte slice
+	// transform.NewReader creates a new reader that decodes the input
+	utf8Bytes, err := io.ReadAll(decoder.Reader(bytes.NewReader(buffer)))
+	if err != nil {
+		return "", false
+	}
+
+	// Convert the UTF-8 byte slice to a Go string
+	return string(utf8Bytes), true
 }
 
 func is_ascii_text(s *string) bool {
