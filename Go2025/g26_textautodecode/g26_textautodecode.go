@@ -2,7 +2,7 @@
 // Learning go, System programming, files, Detect ancoding of a text file
 // Similar to Rust crate TextAutoDecode
 //
-// 2025-06-23	PV		First version
+// 2025-06-23	PV		First version --> Supeseded by Package TextAutoDecode and its tests
 
 package main
 
