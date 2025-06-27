@@ -1,0 +1,29 @@
+{
+	"version": 2.1,
+    "maps": [
+        {
+            "id": "France",
+            "prefix": 33
+        },
+        {
+            "id": "Germany",
+            "prefix": 49
+        },
+        {
+            "id": "Spain",
+            "prefix": 34
+        }
+    ],
+    "masks": {
+        "f1": "%2d:%2d-%3d",
+        "f2": "%4s--%3s"
+    },
+    "threshold": 2.649,
+    "myDateTime1": "2019-09-23T10:10:00",
+    "myDateTime2": "2019-09-23",
+    "parameters": {
+        "color": true,
+        "ascii": false
+    },
+    "fruits": ["apple", "banana", "orange"]
+}

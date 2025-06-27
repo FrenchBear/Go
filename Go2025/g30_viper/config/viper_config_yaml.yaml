@@ -1,0 +1,69 @@
+# Example of yaml file to test deserialization
+# 2021-11-13  PV
+
+version: 2
+pi: 3.1416      # Rounded to 4 decimals
+
+# Bar means litteral interpretation, loaded value contains \n including final \n because of empty final line 
+command: |
+  if version>=2:
+    print('Ok')
+  else:
+    print('Obsolete')
+
+# > means simple multiline text, but newlines are replaced by spaces when reading (but there is still a final \n)
+# - is the strip chomp operator to strip last \n (+ is the preserve chomp)
+description: >-
+  Ceci est un texte
+  stocké sur 3 lignes
+  dans le fichier yaml
+
+environment:
+  source: C:\Development\source\app.cs
+  target: C:\Utils
+  n1: null              # null value, none in Python
+  n2: ~                 # another null value
+  b1: true              # bool
+  b2: False
+  b3: On                # also bool
+  b4: Off
+  a1: [1,2,3,4]         # array inline
+  a2:                   # another array
+    - 1
+    - 2
+    - 3
+    - 4
+  d1: { one: 1, two: 2, three: 3}   # dictionary inline
+  d2:                   # another dic
+    one: 1
+    two: 2
+    three: 3
+process:
+  - step: 1
+    name: init
+    from: git:https://xxx.xxx.com/proj
+    where: c:\temp\s
+  - step: 2
+    name: compile
+    source: c:\temp\s\project\f1.cpp
+    command: [cpp, -c, f1.cpp]
+  - step: 3
+    name: deploy
+    where: C:\Utils
+    log:
+      enable: true
+      location: somewhere
+      level: 3
+
+colors:
+  - blue
+  - white
+  - red
+
+couleurs:
+  - name: bleu
+    detail: rgb(0,0,255)
+  - name: blanc
+    detail: rgb(255,255,255)
+  - name: rouge
+    detail: rgb(255,0,0)
