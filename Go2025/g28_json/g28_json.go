@@ -13,7 +13,7 @@ import (
 )
 
 // Field must be public (start with uppercase)
-type UseAll struct {
+type User struct {
 	Name    string `json:"username"`
 	Surname string `json:"surname"`
 	Year    int    `json:"created"`
@@ -37,19 +37,19 @@ type Password struct {
 func main() {
 	fmt.Printf("Go JSON\n\n")
 
-	encode_decode()
-	streams()
+	json_encode_decode()
+	json_streams()
 	json_pretty_print()
 }
 
-func encode_decode() {
-	fmt.Printf("Records Marshalling/Unmarshalling\n\n")
+func json_encode_decode() {
+	fmt.Printf("Json Records Marshalling/Unmarshalling\n\n")
 
-	useall := UseAll{Name: "Mike", Surname: "Tsoukalos", Year: 2021}
+	user := User{Name: "Mike", Surname: "Tsoukalos", Year: 2021}
 
 	// Regular Structure
 	// Encoding JSON data -> Convert Go Structure to JSON record with fields
-	t, err := json.Marshal(&useall)
+	t, err := json.Marshal(&user)
 	// The json.Marshal() function requires a pointer to a structure variable—its real
 	// data type is an empty interface variable—and returns a byte slice with the encoded
 	// information and an error variable.
@@ -68,7 +68,7 @@ func encode_decode() {
 	// However, as json.Unmarshal() requires a byte slice, you need to convert that string
 	// into a byte slice before passing it to json.Unmarshal().
 	// Create a structure variable to store the result
-	temp := UseAll{}
+	temp := User{}
 	err = json.Unmarshal(jsonRecord, &temp)
 
 	if err != nil {
@@ -121,7 +121,7 @@ func Serialize(e *json.Encoder, slice interface{}) error {
 	return e.Encode(slice)
 }
 
-func streams() {
+func json_streams() {
 	fmt.Printf("\n\nJson streams\n\n")
 
 	// Create sample data
@@ -161,7 +161,7 @@ func streams() {
 func json_pretty_print() {
 	fmt.Printf("\n\nJson pretty printing\n\n")
 
-	useall := UseAll{Name: "Mike", Surname: "Tsoukalos", Year: 2021}
+	useall := User{Name: "Mike", Surname: "Tsoukalos", Year: 2021}
 	PrettyPrint_record(useall)
 	fmt.Println()
 	
