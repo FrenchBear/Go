@@ -1,8 +1,12 @@
 // textautodecode.go
 // Read text file and automatically detects encoding
 // Similar to Rust crate TextAutoDecode
+// This function is also used when exploring a large number of files using ggrep command, and many can be very large binary files
+// that should be skipped by ggrep. Always reading the whole file from the beginning simplifies the code, at the expense of
+// secrious performance degradation of ggprep when the list of processed files contains many binaries (.exe, .obj, .pdb, ...)
 //
 // 2025-06-23	PV		First version
+// 2025-06-28	Gemini	Some updates, but Gemini totally missed the interest of a partial initial read on code performance
 
 package TextAutoDecode
 
@@ -10,14 +14,12 @@ import (
 	"bytes"
 	"io"
 	"os"
-
-	// "strings"
 	"unicode/utf8"
 
 	"golang.org/x/text/encoding/charmap"
 )
 
-const LIB_VERSION = "1.0.0"
+const LIB_VERSION = "1.0.1"
 
 // Returns library current version
 func Version() string {
@@ -39,7 +41,7 @@ const (
 	UTF16LE                            // No BOM but UTF-16 LE detected
 	UTF16BE                            // No BOM but UTF-16 BE detected
 	UTF16LEBOM                         // Starts with FF FE (Windows)
-	UTF16BEBOM                        // Starts with FE FF
+	UTF16BEBOM                         // Starts with FE FF
 )
 
 // Type returned by ReadFile, contains text and encoding
@@ -77,6 +79,19 @@ func (enc TextFileEncoding) String() string {
 	}
 }
 
+// BOMs
+var (
+	utf8BOM    = []byte{0xEF, 0xBB, 0xBF}
+	utf16LEBOM = []byte{0xFF, 0xFE}
+	utf16BEBOM = []byte{0xFE, 0xFF}
+)
+
+// Heuristics constants
+const (
+	minSizeForUTF16NoBOMCheck = 20
+	minASCIIPercentage        = 0.75
+)
+
 func ReadTextFile(file string) (TextAutoDecode, error) {
 	f, err := os.Open(file)
 	if err != nil {
@@ -101,7 +116,8 @@ func ReadTextFile(file string) (TextAutoDecode, error) {
 
 	// UTF-8 BOM?
 	// Since we have a BOM, no need to check for ASCII subset
-	if n >= 3 && buffer_1000[0] == 0xEF && buffer_1000[1] == 0xBB && buffer_1000[2] == 0xBF {
+	//if n >= 3 && buffer_1000[0] == 0xEF && buffer_1000[1] == 0xBB && buffer_1000[2] == 0xBF {
+	if bytes.HasPrefix(buffer_1000, utf8BOM) {
 		s, ok := check_utf8(buffer_1000, n)
 
 		if !ok {
@@ -116,7 +132,8 @@ func ReadTextFile(file string) (TextAutoDecode, error) {
 	}
 
 	// UTF-16 LE BOM? (Windows)
-	if n >= 2 && buffer_1000[0] == 0xFF && buffer_1000[1] == 0xFE {
+	//if n >= 2 && buffer_1000[0] == 0xFF && buffer_1000[1] == 0xFE {
+	if bytes.HasPrefix(buffer_1000, utf16LEBOM) {
 		s, ok := check_utf16(buffer_1000, n, UTF16LEBOM)
 		if !ok {
 			return TextAutoDecode{Text: "", Encoding: NotText}, nil
@@ -130,7 +147,8 @@ func ReadTextFile(file string) (TextAutoDecode, error) {
 	}
 
 	// UTF-16 BE BOM?
-	if n >= 2 && buffer_1000[0] == 0xFE && buffer_1000[1] == 0xFF {
+	//if n >= 2 && buffer_1000[0] == 0xFE && buffer_1000[1] == 0xFF {
+	if bytes.HasPrefix(buffer_1000, utf16BEBOM) {
 		s, ok := check_utf16(buffer_1000, n, UTF16BEBOM)
 		if !ok {
 			return TextAutoDecode{Text: "", Encoding: NotText}, nil
@@ -174,7 +192,7 @@ func ReadTextFile(file string) (TextAutoDecode, error) {
 
 	// UTF-16 LE? (Windows)
 	// Only files with more than 10 characters (20 bytes) are tested and checked for 75% ASCII, or many small binary non text-files will match
-	if n > 20 {
+	if n > minSizeForUTF16NoBOMCheck {
 		s, ok := check_utf16(buffer_1000, n, UTF16LE)
 		if ok {
 			if n < 1000 {
@@ -254,7 +272,7 @@ func is_75percent_ascii(s *string) bool {
 	if l < 10 {
 		return true
 	} else {
-		return float64(acount)/float64(l) >= 0.75
+		return float64(acount)/float64(l) >= minASCIIPercentage
 	}
 }
 
@@ -433,7 +451,7 @@ func utf16_decode(buffer []byte, encoding TextFileEncoding) (string, bool) {
 	start := 0
 	if encoding == UTF16BEBOM || encoding == UTF16LEBOM {
 		// Check BOM
-		if buffer[off] != 0xFF || buffer[1-off] != 0xFE {
+		if len(buffer) < 2 || buffer[off] != 0xFF || buffer[1-off] != 0xFE {
 			return "", false
 		}
 		start = 2
@@ -452,6 +470,7 @@ func utf16_decode(buffer []byte, encoding TextFileEncoding) (string, bool) {
 
 	var buf []rune
 	for start < len(buffer) {
+		// Already checked that buffer length is an even number, so at this point, buffer[start+1] exists
 		r := (int(buffer[start+off]) + (int(buffer[start+1-off]) << 8))
 		var ar rune
 		switch {
@@ -459,13 +478,13 @@ func utf16_decode(buffer []byte, encoding TextFileEncoding) (string, bool) {
 			// normal rune
 			ar = rune(r)
 		case r >= surr1 && r < surr2: // High surrogate
-			if start+2 >= len(buffer) {
+			if start+2 >= len(buffer) { // Because even length, start+2 is enough
 				return "", false
 			}
 			start += 2
 			r2 := (int(buffer[start+off]) + (int(buffer[start+1-off]) << 8))
 			ar = rune((r-surr1)<<10 | (r2 - surr2) + surrSelf)
-		default:
+		default: // Low surrogate not following a high surrogate
 			return "", false
 		}
 		buf = append(buf, ar)
@@ -487,7 +506,7 @@ func eightbit_decode(buffer []byte) (string, bool) {
 	// Create a new decoder for Windows CP 1252
 	decoder := charmap.Windows1252.NewDecoder()
 
-	// Use ioutil.ReadAll with the decoder to convert the byte slice
+	// Use io.ReadAll with the decoder to convert the byte slice
 	// transform.NewReader creates a new reader that decodes the input
 	utf8Bytes, err := io.ReadAll(decoder.Reader(bytes.NewReader(buffer)))
 	if err != nil {

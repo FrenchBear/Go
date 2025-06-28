@@ -39,7 +39,7 @@ func test(filename string) {
 		return
 	}
 
-	fmt.Printf("%-65.65s %s\n", filename, tad.Encoding.String())
+	fmt.Printf("%-65.65s %s\n", filename, tad.Encoding)		// Calls String() function automatically on tad.Encoding
 	if strings.Contains(filename, "empty") || strings.Contains(filename, ".exe") {
 		return
 	}
