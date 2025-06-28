@@ -39,7 +39,7 @@ const (
 	UTF16LE                            // No BOM but UTF-16 LE detected
 	UTF16BE                            // No BOM but UTF-16 BE detected
 	UTF16LEBOM                         // Starts with FF FE (Windows)
-	UTF16BEBOM                         // Starts with FE FF
+	UTF16BEBOM                        // Starts with FE FF
 )
 
 // Type returned by ReadFile, contains text and encoding
@@ -48,7 +48,7 @@ type TextAutoDecode struct {
 	Encoding TextFileEncoding
 }
 
-func (enc TextFileEncoding) ToString() string {
+func (enc TextFileEncoding) String() string {
 	switch enc {
 	case FileError:
 		return "FileError"
