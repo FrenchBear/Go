@@ -240,6 +240,10 @@ func read_config_ini(viper *viper.Viper) {
 	} else {
 		fmt.Printf("IniConfig: %v\n", config)
 	}
+
+	// Update config file
+	viper.Set("default_values.port", viper.GetInt("default_values.port")+1)
+	viper.WriteConfig()
 }
 
 func read_config_hcl(viper *viper.Viper) {
