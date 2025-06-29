@@ -1,4 +1,4 @@
-// g31_dir.go
+// g32_dir.go
 // Learning go, System programming, Explore directories
 //
 // 2025-06-28	PV		First version
@@ -14,7 +14,7 @@ import (
 )
 
 func main() {
-	fmt.Println("Go Directories")
+	fmt.Printf("Go Directories\n\n")
 
 	test_sum_files_size()
 }

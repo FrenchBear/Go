@@ -1,4 +1,4 @@
-// g32_transmute.go
+// g31_transmute.go
 // Learning go, System programming, transform []uint8 into []uint16
 //
 // 2025-06-29	PV		First version
