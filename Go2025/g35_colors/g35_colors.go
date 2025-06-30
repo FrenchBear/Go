@@ -1,5 +1,6 @@
 // g35_colors.go
 // Learning go, System programming, Colors using fatih/color package
+// https://github.com/fatih/color
 //
 // 2025-06-30	PV		First version
 

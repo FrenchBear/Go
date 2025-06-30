@@ -1,7 +1,8 @@
-// g34_gtree.go
-// Learning go, System programming, Tree command in Go
+// gtree.go
+// Tree command in Go
 // without -a option, doesn't show hidden directories or directories starting with a dot
 // SYSTEM+HIDDEN directories are always skipped
+// For now, the code in Windows-only until I learn how to compile code conditionally
 //
 // 2025-06-29	PV		First version
 

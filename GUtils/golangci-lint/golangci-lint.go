@@ -1,5 +1,5 @@
 // golangci-lint.go
-// Wrapper to golangci-lint.exe, eliminate VSCode hardcoed options --print-issued-lines=false and --out-format=colored-line-number
+// Wrapper to golangci-lint.exe, eliminate VSCode hardcoded options --print-issued-lines=false and --out-format=colored-line-number
 // not supported anymore by golangci-lint.exe
 //
 // 2025-06-12	PV		First version, code provoded by Gemini
