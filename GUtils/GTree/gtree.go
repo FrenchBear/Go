@@ -5,6 +5,7 @@
 // For now, the code in Windows-only until I learn how to compile code conditionally
 //
 // 2025-06-29	PV		First version
+// 2025-06-30	PV		Sort files and folders using StrCmpLogicalW used by Windows file explorer
 
 package main
 
@@ -17,6 +18,7 @@ import (
 	"sort"
 	"syscall"
 	"time"
+	"unsafe"
 )
 
 // Options
@@ -26,7 +28,7 @@ var showall bool
 
 // Global constants
 const APP_NAME string = "gtree"
-const APP_VERSION string = "1.0.0"
+const APP_VERSION string = "1.1.0"
 
 // usage overrides default flag version
 func usage() {
@@ -45,7 +47,7 @@ func main() {
 	flag.BoolVar(&h1, "h", false, "Shows this message")
 	flag.BoolVar(&h2, "?", false, "Shows this message")
 	flag.BoolVar(&verbose, "v", false, "Verbose output")
-	flag.BoolVar(&showall, "a", false, "Include hidden directories")
+	flag.BoolVar(&showall, "a", false, "Show all directories, including hidden directories and directories starting with a dot")
 
 	flag.Usage = usage
 	flag.Parse()
@@ -80,6 +82,52 @@ func main() {
 	}
 }
 
+// Define the signature of StrCmpLogicalW
+// int StrCmpLogicalW(LPCWSTR psz1, LPCWSTR psz2);
+// Returns:
+//   -1 if psz1 comes before psz2
+//    0 if psz1 is identical to psz2
+//    1 if psz1 comes after psz2
+var (
+	shlwapi        = syscall.NewLazyDLL("shlwapi.dll")
+	strCmpLogicalW = shlwapi.NewProc("StrCmpLogicalW")
+)
+
+// StrCmpLogicalWGo is a Go wrapper for the Windows API StrCmpLogicalW function.
+// It compares two strings using the natural sort algorithm, similar to Windows File Explorer.
+func StrCmpLogicalWGo(s1, s2 string) int {
+	// Convert Go strings to null-terminated UTF-16 pointers for Windows API
+	// syscall.UTF16PtrFromString allocates memory that needs to be freed
+	// It's safer to use the x/sys/windows package for this.
+	// For simplicity in this example, we'll use syscall directly,
+	// but be aware of potential memory considerations in very high-performance loops.
+	// In most cases, the garbage collector will handle it.
+
+	// Create UTF-16 pointers
+	p1, err := syscall.UTF16PtrFromString(s1)
+	if err != nil {
+		// Handle error: perhaps log or panic, depending on your application's needs.
+		// For a comparison function, panicking might be acceptable if input is guaranteed valid.
+		panic(fmt.Sprintf("Failed to convert string 1 to UTF16: %v", err))
+	}
+	p2, err := syscall.UTF16PtrFromString(s2)
+	if err != nil {
+		panic(fmt.Sprintf("Failed to convert string 2 to UTF16: %v", err))
+	}
+
+	// Call the underlying Windows API function
+	// The uintptr(unsafe.Pointer(p1)) converts the pointer to a uintptr,
+	// which is what NewProc.Call expects for arguments.
+	ret, _, _ := strCmpLogicalW.Call(uintptr(unsafe.Pointer(p1)), uintptr(unsafe.Pointer(p2)))
+
+	// StrCmpLogicalW returns:
+	// < 0 if psz1 comes before psz2
+	//   0 if psz1 is identical to psz2
+	// > 0 if psz1 comes after psz2
+	// We cast the result to int64 first to handle potential negative return values correctly.
+	return int(int32(ret))
+}
+
 func doPrint(b *DataBag, root string) {
 	entries, err := os.ReadDir(root)
 	if err != nil {
@@ -93,7 +141,7 @@ func doPrint(b *DataBag, root string) {
 			fmt.Fprintf(os.Stderr, "%s: Errror processing '%s' entry: %s\n", APP_NAME, root, err)
 			continue
 		} else if info.IsDir() {
-			h,s,e := isHiddenOrSystemWindows(filepath.Join(root, info.Name()))
+			h, s, e := isHiddenOrSystemWindows(filepath.Join(root, info.Name()))
 			if e != nil {
 				fmt.Fprintf(os.Stderr, "%s: Errror processing '%s' entry: %s\n", APP_NAME, root, e)
 				continue
@@ -110,7 +158,7 @@ func doPrint(b *DataBag, root string) {
 		}
 	}
 	sort.Slice(infos, func(i, j int) bool {
-		return infos[i].Name() < infos[j].Name()
+		return StrCmpLogicalWGo(infos[i].Name(), infos[j].Name()) < 0
 	})
 
 	fmt.Println(root)
@@ -147,7 +195,7 @@ func printTree(b *DataBag, root string, subdir string, prefix string, is_last bo
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "%s: Errror processing '%s' entry: %s\n", APP_NAME, root, err)
 		} else if info.IsDir() {
-			h,s,e := isHiddenOrSystemWindows(filepath.Join(subdir_fp, info.Name()))
+			h, s, e := isHiddenOrSystemWindows(filepath.Join(subdir_fp, info.Name()))
 			if e != nil {
 				fmt.Fprintf(os.Stderr, "%s: Errror processing '%s' entry: %s\n", APP_NAME, root, e)
 				continue
@@ -163,7 +211,7 @@ func printTree(b *DataBag, root string, subdir string, prefix string, is_last bo
 		}
 	}
 	sort.Slice(infos, func(i, j int) bool {
-		return infos[i].Name() < infos[j].Name()
+		return StrCmpLogicalWGo(infos[i].Name(), infos[j].Name()) < 0
 	})
 
 	for i, info := range infos {

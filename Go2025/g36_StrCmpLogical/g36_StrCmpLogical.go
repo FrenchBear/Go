@@ -16,6 +16,129 @@ To call StrCmpLogicalW from shlwapi.dll in Go on Windows, you'll use the syscall
 syscall.NewLazyDLL and syscall.NewLazyProc.
 */
 
+/*
+package main
+
+import (
+	"fmt"
+	"os"
+	"sort"
+	"syscall"
+	"unsafe"
+)
+
+// Define the signature of StrCmpLogicalW
+// int StrCmpLogicalW(LPCWSTR psz1, LPCWSTR psz2);
+// Returns:
+//   -1 if psz1 comes before psz2
+//    0 if psz1 is identical to psz2
+//    1 if psz1 comes after psz2
+
+var (
+	shlwapi        = syscall.NewLazyDLL("shlwapi.dll")
+	strCmpLogicalW = shlwapi.NewProc("StrCmpLogicalW")
+)
+
+// StrCmpLogicalWGo is a Go wrapper for the Windows API StrCmpLogicalW function.
+// It compares two strings using the natural sort algorithm, similar to Windows File Explorer.
+func StrCmpLogicalWGo(s1, s2 string) int {
+	p1, err := syscall.UTF16PtrFromString(s1)
+	if err != nil {
+		// Panic here indicates a serious problem with string conversion
+		panic(fmt.Sprintf("Failed to convert string 1 '%s' to UTF16: %v", s1, err))
+	}
+	p2, err := syscall.UTF16PtrFromString(s2)
+	if err != nil {
+		panic(fmt.Sprintf("Failed to convert string 2 '%s' to UTF16: %v", s2, err))
+	}
+
+	// ret is the direct return value from the API call
+	// errCode is the low-level error (e.g., from kernel32's SetLastError)
+	// lastErr is the result of GetLastError() after the call
+	ret, errCode, lastErr := strCmpLogicalW.Call(uintptr(unsafe.Pointer(p1)), uintptr(unsafe.Pointer(p2)))
+	// Check if the API call itself returned an error
+	// If ret is 0, it means strings are equal, not an error.
+	// We need to check errCode and lastErr to see if the call failed.
+	le := fmt.Sprintf("%d", lastErr)
+	if errCode != 0 || le!="0" {
+		// A non-zero errCode or lastErr usually indicates an issue with the API call itself.
+		// For StrCmpLogicalW, this is very unlikely unless the DLL/Proc couldn't be loaded.
+		// Let's print a warning or error.
+		fmt.Fprintf(os.Stderr, "WARNING: StrCmpLogicalW call for ('%s', '%s') returned non-zero error codes: errCode=%d, lastErr=%d\n", s1, s2, errCode, lastErr)
+		// Depending on your requirements, you might want to return 0 here
+		// or even panic if you expect the call to always succeed.
+	}
+
+	return int(int32(ret))
+}
+
+func main() {
+	fmt.Println(StrCmpLogicalWGo("folder1", "Image_2.jpg"))
+	fmt.Println(StrCmpLogicalWGo("Image_2.jpg", "folder1"))
+	fmt.Println(StrCmpLogicalWGo("Image_2.jpg", "Image_2.jpg"))
+
+	var ret uintptr
+	ret = 4294967295
+	fmt.Println(ret)
+
+	var i int32
+	i = int32(ret)
+	fmt.Println(i)
+}
+
+func zmain() {
+	filenames := []string{
+		"file1.txt",
+		"file10.txt",
+		"file2.txt",
+		"another_file.txt",
+		"Image_1.jpg",
+		"Image_10.jpg",
+		"Image_2.jpg",
+		"folder A",
+		"folder B",
+		"folder 1",
+		"folder 10",
+		"folder 2",
+		"archive.zip",
+	}
+
+	fmt.Println("Original filenames:")
+	for _, f := range filenames {
+		fmt.Println(f)
+	}
+
+	// Sort using standard lexicographical sort
+	lexicalSorted := make([]string, len(filenames))
+	copy(lexicalSorted, filenames)
+	sort.Strings(lexicalSorted)
+	fmt.Println("\nSorted (Lexicographical - standard Go sort.Strings):")
+	for _, f := range lexicalSorted {
+		fmt.Println(f)
+	}
+
+	// Sort using StrCmpLogicalWGo
+	naturalSorted := make([]string, len(filenames))
+	copy(naturalSorted, filenames)
+
+	// Add a debug print for each comparison to see what StrCmpLogicalWGo is returning
+	fmt.Println("\n--- Debugging StrCmpLogicalWGo comparisons ---")
+	sort.Slice(naturalSorted, func(i, j int) bool {
+		s1 := naturalSorted[i]
+		s2 := naturalSorted[j]
+		cmpResult := StrCmpLogicalWGo(s1, s2)
+		fmt.Printf("Comparing '%s' vs '%s': Result = %d (Expected < 0 for less, 0 for equal, > 0 for greater)\n", s1, s2, cmpResult)
+		return cmpResult < 0
+	})
+	fmt.Println("--- End Debugging ---")
+
+	fmt.Println("\nSorted (Natural Sort - Windows File Explorer style):")
+	for _, f := range naturalSorted {
+		fmt.Println(f)
+	}
+}
+*/
+
 package main
 
 import (
@@ -69,7 +192,7 @@ func StrCmpLogicalWGo(s1, s2 string) int {
 	//   0 if psz1 is identical to psz2
 	// > 0 if psz1 comes after psz2
 	// We cast the result to int64 first to handle potential negative return values correctly.
-	return int(ret)
+	return int(int32(ret))
 }
 
 func main() {
