@@ -1,0 +1,202 @@
+// myglob_test.go
+// Tests for MyGlob package
+//
+// 2025-07-01	PV 		Converted from Rust by Gemini
+
+package MyGlob
+
+import (
+	"os"
+	"strings"
+	"testing"
+)
+
+func TestMain(m *testing.M) {
+	// Setup for search tests
+	setupSearchTests()
+	// Run tests
+	code := m.Run()
+	// Teardown for search tests
+teardownSearchTests()
+	// Exit
+	os.Exit(code)
+}
+
+// -----------------------------------------------------------------------------
+// Tests for regexp conversions
+
+func TestRegexpConversions(t *testing.T) {
+	t.Run("Simple constant string", func(t *testing.T) {
+		globOneSegmentTest(t, "Pomme", "pomme", true)
+		globOneSegmentTest(t, "Pomme", "pommerol", false)
+	})
+
+	t.Run("* pattern", func(t *testing.T) {
+		globOneSegmentTest(t, "*", "rsgresp.d", true)
+		globOneSegmentTest(t, "*.d", "rsgresp.d", true)
+		globOneSegmentTest(t, "*.*", "rsgresp.d", true)
+		globOneSegmentTest(t, "*.*", "rsgresp", false)
+	})
+
+	t.Run("** pattern", func(t *testing.T) {
+		_, err := globToSegments("**.d" + string(os.PathSeparator))
+		if err == nil {
+			t.Errorf("Expected error for **.d, got nil")
+		}
+		globOneSegmentTest(t, "**", "", true)
+	})
+
+	t.Run("Alternations", func(t *testing.T) {
+		globOneSegmentTest(t, "a{b,c}d", "abd", true)
+		globOneSegmentTest(t, "a{b,c}d", "ad", false)
+		globOneSegmentTest(t, "a{{b,c},{d,e}}f", "acf", true)
+		globOneSegmentTest(t, "a{{b,c},{d,e}}f", "adf", true)
+		globOneSegmentTest(t, "a{{b,c},{d,e}}f", "acdf", false)
+		globOneSegmentTest(t, "a{b,c}{d,e}f", "acdf", true)
+		globOneSegmentTest(t, "file.{cs,py,rs,vb}", "file.bat", false)
+		globOneSegmentTest(t, "file.{cs,py,rs,vb}", "file.rs", true)
+	})
+
+	t.Run("? pattern", func(t *testing.T) {
+		globOneSegmentTest(t, "file.?s", "file.rs", true)
+		globOneSegmentTest(t, "file.?s", "file.cds", false)
+	})
+
+	t.Run("Character classes", func(t *testing.T) {
+		globOneSegmentTest(t, "file.[cr]s", "file.rs", true)
+		globOneSegmentTest(t, "file.[cr]s", "file.cs", true)
+		globOneSegmentTest(t, "file.[cr]s", "file.py", false)
+		globOneSegmentTest(t, "file.[a-r]s", "file.rs", true)
+		globOneSegmentTest(t, "file.[-+]s", "file.-s", true)
+		globOneSegmentTest(t, "file.[!abc]s", "file.rs", true)
+		globOneSegmentTest(t, "file.[!abc]s", "file.cs", false)
+		globOneSegmentTest(t, "file.[]]s", "file.]s", true)
+		globOneSegmentTest(t, "file.[!]]s", "file.[s", true)
+		globOneSegmentTest(t, `file[\d].cs`, "file1.cs", true)
+		globOneSegmentTest(t, `file[\D].cs`, "filed.cs", true)
+	})
+}
+
+func globOneSegmentTest(t *testing.T, globPattern, testString string, isMatch bool) {
+	segments, err := globToSegments(globPattern + string(os.PathSeparator))
+	if err != nil {
+		t.Errorf("globToSegments failed for %s: %v", globPattern, err)
+		return
+	}
+
+	if globPattern != "**" && len(segments) != 1 {
+		t.Errorf("Expected 1 segment for %s, got %d", globPattern, len(segments))
+		return
+	}
+
+	if len(segments) == 0 {
+		return
+	}
+
+	switch s := segments[0].(type) {
+	case ConstantSegment:
+		if (strings.EqualFold(s.Value, testString)) != isMatch {
+			t.Errorf("Constant match failed for %s with %s", globPattern, testString)
+		}
+	case RecurseSegment:
+		if !isMatch {
+			t.Errorf("Recurse match failed for %s with %s", globPattern, testString)
+		}
+	case FilterSegment:
+		if s.Regex.MatchString(testString) != isMatch {
+			t.Errorf("Filter match failed for %s with %s (regex: %s)", globPattern, testString, s.Regex.String())
+		}
+	}
+}
+
+// -----------------------------------------------------------------------------
+// Tests for search functionality
+
+func setupSearchTests() {
+	_ = os.MkdirAll(`C:\Temp\search1\fruits`, 0755)
+	_ = os.MkdirAll(`C:\Temp\search1\légumes`, 0755)
+	_ = os.WriteFile(`C:\Temp\search1\fruits et légumes.txt`, []byte("Des fruits et des légumes"), 0644)
+	_ = os.WriteFile(`C:\Temp\search1\info`, []byte("Information"), 0644)
+	_ = os.WriteFile(`C:\Temp\search1\fruits\pomme.txt`, []byte("Pomme"), 0644)
+	_ = os.WriteFile(`C:\Temp\search1\fruits\poire.txt`, []byte("Poire"), 0644)
+	_ = os.WriteFile(`C:\Temp\search1\fruits\ananas.txt`, []byte("Ananas"), 0644)
+	_ = os.WriteFile(`C:\Temp\search1\fruits\tomate.txt`, []byte("Tomate"), 0644)
+	_ = os.WriteFile(`C:\Temp\search1\légumes\épinard.txt`, []byte("Épinard"), 0644)
+	_ = os.WriteFile(`C:\Temp\search1\légumes\tomate.txt`, []byte("Tomate"), 0644)
+	_ = os.WriteFile(`C:\Temp\search1\légumes\pomme.de.terre.txt`, []byte("Pomme de terre"), 0644)
+}
+
+func teardownSearchTests() {
+	_ = os.RemoveAll(`C:\Temp\search1`)
+}
+
+func TestSearch(t *testing.T) {
+	tests := []struct {
+		name          string
+		glob          string
+		autorecurse   bool
+		ignore        []string
+		expectedFiles int
+		expectedDirs  int
+	}{
+		{"InfoFile", `C:\Temp\search1\info`, false, nil, 1, 0},
+		{"AllInRoot", `C:\Temp\search1\*`, false, nil, 2, 2},
+		{"TxtInRoot", `C:\Temp\search1\*.*`, false, nil, 1, 0},
+		{"FilesInFruits", `C:\Temp\search1\fruits\*`, false, nil, 4, 0},
+		{"PFilesInTwoDirs", `C:\Temp\search1\{fruits,légumes}\p*`, false, nil, 3, 0},
+		{"RecursivePFiles", `C:\Temp\search1\**\p*`, false, nil, 3, 0},
+		{"RecursiveTxtFiles", `C:\Temp\search1\**\*.txt`, false, nil, 8, 0},
+		{"RecursiveDoubleExt", `C:\Temp\search1\**\*.*.*`, false, nil, 1, 0},
+		{"FilesInLegumes", `C:\Temp\search1\légumes\*`, false, nil, 3, 0},
+		{"ComplexFilter", `C:\Temp\search1\*s\to[a-z]a{r,s,t}e.t[xX]t`, false, nil, 2, 0},
+		{"AutorecurseTxt", `C:\Temp\search1\*.txt`, true, nil, 8, 0},
+		{"AutorecurseRoot", `C:\Temp\search1`, true, nil, 9, 2},
+		{"IgnoreLegumes", `C:\Temp\search1\**\*.txt`, false, []string{"Légumes"}, 5, 0},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			builder := New(tt.glob).Autorecurse(tt.autorecurse)
+			for _, ignore := range tt.ignore {
+				builder.AddIgnoreDir(ignore)
+			}
+			gs, err := builder.Compile()
+			if err != nil {
+				t.Fatalf("Compile failed: %v", err)
+			}
+
+			nf, nd := 0, 0
+			for m := range gs.Explore() {
+				if m.Err != nil {
+					t.Errorf("Explore error: %v", m.Err)
+					continue
+				}
+				if m.IsDir {
+					nd++
+				} else {
+					nf++
+				}
+			}
+
+			if nf != tt.expectedFiles || nd != tt.expectedDirs {
+				t.Errorf("got (files: %d, dirs: %d), want (files: %d, dirs: %d)", nf, nd, tt.expectedFiles, tt.expectedDirs)
+			}
+		})
+	}
+}
+
+func TestSearchErrors(t *testing.T) {
+	t.Run("InvalidGlob", func(t *testing.T) {
+			_, err := New(`C:\**z\\z`).Compile()
+			if err == nil {
+				t.Error("Expected error for invalid glob, got nil")
+			}
+		})
+
+	t.Run("InvalidRegex", func(t *testing.T) {
+			_, err := New(`C:\[\d&&\p{ascii]`).Compile()
+			if err == nil {
+				t.Error("Expected error for invalid regex, got nil")
+			}
+		})
+}
