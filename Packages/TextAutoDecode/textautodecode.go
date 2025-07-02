@@ -7,6 +7,7 @@
 //
 // 2025-06-23	PV		First version
 // 2025-06-28	Gemini	Some updates, but Gemini totally missed the interest of a partial initial read on code performance
+// 2025-07-023	PV		Moved tests to the main project itself; Added prefix TFE_ to TextFileEncoding constants
 
 package TextAutoDecode
 
@@ -31,17 +32,17 @@ const MILLE = 1000
 type TextFileEncoding int
 
 const (
-	FileError  TextFileEncoding = iota // Error reading file, file not found, ...
-	NotText                            // Binary or unrecognized text (for instance contains chars in 0..31 other than \r \n \t)
-	Empty                              // File is empty
-	ASCII                              // Only 7-bit characters
-	EightBit                           // ANSI/Windows 1252 (only this variant is checked)
-	UTF8                               // Plain UTF-8 without BOM
-	UTF8BOM                            // Starts with EF BB BF
-	UTF16LE                            // No BOM but UTF-16 LE detected
-	UTF16BE                            // No BOM but UTF-16 BE detected
-	UTF16LEBOM                         // Starts with FF FE (Windows)
-	UTF16BEBOM                         // Starts with FE FF
+	TFE_FileError  TextFileEncoding = iota // Error reading file, file not found, ...
+	TFE_NotText                            // Binary or unrecognized text (for instance contains chars in 0..31 other than \r \n \t)
+	TFE_Empty                              // File is empty
+	TFE_ASCII                              // Only 7-bit characters
+	TFE_EightBit                           // ANSI/Windows 1252 (only this variant is checked)
+	TFE_UTF8                               // Plain UTF-8 without BOM
+	TFE_UTF8BOM                            // Starts with EF BB BF
+	TFE_UTF16LE                            // No BOM but UTF-16 LE detected
+	TFE_UTF16BE                            // No BOM but UTF-16 BE detected
+	TFE_UTF16LEBOM                         // Starts with FF FE (Windows)
+	TFE_UTF16BEBOM                        // Starts with FE FF
 )
 
 // Type returned by ReadFile, contains text and encoding
@@ -50,29 +51,30 @@ type TextAutoDecode struct {
 	Encoding TextFileEncoding
 }
 
+// Since it's named String(), a format %s in fmt.Printf() will automatically call this function
 func (enc TextFileEncoding) String() string {
 	switch enc {
-	case FileError:
+	case TFE_FileError:
 		return "FileError"
-	case NotText:
+	case TFE_NotText:
 		return "NotText"
-	case Empty:
+	case TFE_Empty:
 		return "Empty"
-	case ASCII:
+	case TFE_ASCII:
 		return "ASCII"
-	case EightBit:
+	case TFE_EightBit:
 		return "EightBit"
-	case UTF8:
+	case TFE_UTF8:
 		return "UTF8"
-	case UTF8BOM:
+	case TFE_UTF8BOM:
 		return "UTF8BOM"
-	case UTF16LE:
+	case TFE_UTF16LE:
 		return "UTF16LE"
-	case UTF16BE:
+	case TFE_UTF16BE:
 		return "UTF16BE"
-	case UTF16LEBOM:
+	case TFE_UTF16LEBOM:
 		return "UTF16LEBOM"
-	case UTF16BEBOM:
+	case TFE_UTF16BEBOM:
 		return "UTF16BEBOM"
 	default:
 		return "??"
@@ -103,7 +105,7 @@ func ReadTextFile(file string) (TextAutoDecode, error) {
 	buffer_1000 := make([]byte, MILLE)
 	n, err := f.Read(buffer_1000)
 	if n == 0 {
-		return TextAutoDecode{Text: "", Encoding: Empty}, nil
+		return TextAutoDecode{Text: "", Encoding: TFE_Empty}, nil
 	}
 
 	buffer_full := make([]byte, 0)
@@ -121,44 +123,44 @@ func ReadTextFile(file string) (TextAutoDecode, error) {
 		s, ok := check_utf8(buffer_1000, n)
 
 		if !ok {
-			return TextAutoDecode{Text: "", Encoding: NotText}, nil
+			return TextAutoDecode{Text: "", Encoding: TFE_NotText}, nil
 		}
 
 		if n < MILLE {
-			return TextAutoDecode{Text: s[3:], Encoding: UTF8BOM}, nil
+			return TextAutoDecode{Text: s[3:], Encoding: TFE_UTF8BOM}, nil
 		}
 
-		return final_read(&is_buffer_full_read, &buffer_full, f, UTF8BOM)
+		return final_read(&is_buffer_full_read, &buffer_full, f, TFE_UTF8BOM)
 	}
 
 	// UTF-16 LE BOM? (Windows)
 	//if n >= 2 && buffer_1000[0] == 0xFF && buffer_1000[1] == 0xFE {
 	if bytes.HasPrefix(buffer_1000, utf16LEBOM) {
-		s, ok := check_utf16(buffer_1000, n, UTF16LEBOM)
+		s, ok := check_utf16(buffer_1000, n, TFE_UTF16LEBOM)
 		if !ok {
-			return TextAutoDecode{Text: "", Encoding: NotText}, nil
+			return TextAutoDecode{Text: "", Encoding: TFE_NotText}, nil
 		}
 
 		if n < MILLE {
-			return TextAutoDecode{Text: s, Encoding: UTF16LEBOM}, nil
+			return TextAutoDecode{Text: s, Encoding: TFE_UTF16LEBOM}, nil
 		}
 
-		return final_read(&is_buffer_full_read, &buffer_full, f, UTF16LEBOM)
+		return final_read(&is_buffer_full_read, &buffer_full, f, TFE_UTF16LEBOM)
 	}
 
 	// UTF-16 BE BOM?
 	//if n >= 2 && buffer_1000[0] == 0xFE && buffer_1000[1] == 0xFF {
 	if bytes.HasPrefix(buffer_1000, utf16BEBOM) {
-		s, ok := check_utf16(buffer_1000, n, UTF16BEBOM)
+		s, ok := check_utf16(buffer_1000, n, TFE_UTF16BEBOM)
 		if !ok {
-			return TextAutoDecode{Text: "", Encoding: NotText}, nil
+			return TextAutoDecode{Text: "", Encoding: TFE_NotText}, nil
 		}
 
 		if n < MILLE {
-			return TextAutoDecode{Text: s, Encoding: UTF16BEBOM}, nil
+			return TextAutoDecode{Text: s, Encoding: TFE_UTF16BEBOM}, nil
 		}
 
-		return final_read(&is_buffer_full_read, &buffer_full, f, UTF16BEBOM)
+		return final_read(&is_buffer_full_read, &buffer_full, f, TFE_UTF16BEBOM)
 	}
 
 	// Then check encodings without BOM
@@ -170,53 +172,53 @@ func ReadTextFile(file string) (TextAutoDecode, error) {
 		if n < 1000 {
 			var e TextFileEncoding
 			if is_ascii_text(&s) {
-				e = ASCII
+				e = TFE_ASCII
 			} else {
-				e = UTF8
+				e = TFE_UTF8
 			}
 			return TextAutoDecode{Text: s, Encoding: e}, nil
 		} else {
 			// Special case, first 1000 bytes are ASCII so we got there, but after 1000 bytes, we get 8-bit
 			// characters so we can't return if we didn't recognize the whole file as UTF-8
-			tad, err := final_read(&is_buffer_full_read, &buffer_full, f, UTF8)
+			tad, err := final_read(&is_buffer_full_read, &buffer_full, f, TFE_UTF8)
 			if err == nil {
-				if tad.Encoding != NotText {
+				if tad.Encoding != TFE_NotText {
 					return tad, err
 				}
 			}
 		}
 
 		// We skip checking UTF-16, since it's a match for UTF-8/ASCII on the furst 1000 chars
-		return final_read(&is_buffer_full_read, &buffer_full, f, EightBit)
+		return final_read(&is_buffer_full_read, &buffer_full, f, TFE_EightBit)
 	}
 
 	// UTF-16 LE? (Windows)
 	// Only files with more than 10 characters (20 bytes) are tested and checked for 75% ASCII, or many small binary non text-files will match
 	if n > minSizeForUTF16NoBOMCheck {
-		s, ok := check_utf16(buffer_1000, n, UTF16LE)
+		s, ok := check_utf16(buffer_1000, n, TFE_UTF16LE)
 		if ok {
 			if n < 1000 {
-				return TextAutoDecode{Text: s, Encoding: UTF16LE}, nil
+				return TextAutoDecode{Text: s, Encoding: TFE_UTF16LE}, nil
 			}
 
 			return final_read(
 				&is_buffer_full_read,
 				&buffer_full,
 				f,
-				UTF16LE)
+				TFE_UTF16LE)
 		}
 
 		// UTF-16 BE?
-		s, ok = check_utf16(buffer_1000, n, UTF16BE)
+		s, ok = check_utf16(buffer_1000, n, TFE_UTF16BE)
 		if ok {
 			if n < 1000 {
-				return TextAutoDecode{Text: s, Encoding: UTF16BE}, nil
+				return TextAutoDecode{Text: s, Encoding: TFE_UTF16BE}, nil
 			}
 			return final_read(
 				&is_buffer_full_read,
 				&buffer_full,
 				f,
-				UTF16BE)
+				TFE_UTF16BE)
 		}
 	}
 
@@ -224,19 +226,19 @@ func ReadTextFile(file string) (TextAutoDecode, error) {
 	s, ok = check_eightbit(&buffer_1000, n)
 	if ok {
 		if n < 1000 {
-			return TextAutoDecode{Text: s, Encoding: EightBit}, nil
+			return TextAutoDecode{Text: s, Encoding: TFE_EightBit}, nil
 		} else {
 			return final_read(
 				&is_buffer_full_read,
 				&buffer_full,
 				f,
-				EightBit)
+				TFE_EightBit)
 		}
 	}
 
 	// None of the encodings worked without error
 
-	return TextAutoDecode{Text: "??", Encoding: NotText}, nil
+	return TextAutoDecode{Text: "??", Encoding: TFE_NotText}, nil
 }
 
 // The 75% ASCII test is too restrictive, some valid UTF-8 files are rejected (ex: output of tree command)
@@ -291,28 +293,28 @@ func final_read(is_buffer_full_read *bool, buffer_full *[]byte, file *os.File, e
 
 	text := ""
 	switch encoding {
-	case UTF8, UTF8BOM:
+	case TFE_UTF8, TFE_UTF8BOM:
 		if utf8.Valid(*buffer_full) {
-			if encoding == UTF8 {
+			if encoding == TFE_UTF8 {
 				text = string(*buffer_full)
 			} else {
 				text = string(*buffer_full)[3:]
 			}
 		} else {
-			return TextAutoDecode{Text: "", Encoding: NotText}, nil
+			return TextAutoDecode{Text: "", Encoding: TFE_NotText}, nil
 		}
 
-	case UTF16LE, UTF16LEBOM, UTF16BE, UTF16BEBOM:
+	case TFE_UTF16LE, TFE_UTF16LEBOM, TFE_UTF16BE, TFE_UTF16BEBOM:
 		s, ok := utf16_decode(*buffer_full, encoding)
 		if !ok {
-			return TextAutoDecode{Text: "", Encoding: NotText}, nil
+			return TextAutoDecode{Text: "", Encoding: TFE_NotText}, nil
 		}
 		text = s
 
-	case EightBit:
+	case TFE_EightBit:
 		s, ok := eightbit_decode(*buffer_full)
 		if !ok {
-			return TextAutoDecode{Text: "", Encoding: NotText}, nil
+			return TextAutoDecode{Text: "", Encoding: TFE_NotText}, nil
 		}
 		text = s
 
@@ -320,25 +322,25 @@ func final_read(is_buffer_full_read *bool, buffer_full *[]byte, file *os.File, e
 		panic("final_read: encoding not supported yet!")
 	}
 
-	check_ascii := encoding == UTF8 // UTF8_BOM is never considered ASCII
+	check_ascii := encoding == TFE_UTF8 // UTF8_BOM is never considered ASCII
 
 	// Without BOM, we add heuristics to be sure that what has been decoded makes sense
-	check_75percent_text := encoding == EightBit || encoding == UTF16BE || encoding == UTF16LE
+	check_75percent_text := encoding == TFE_EightBit || encoding == TFE_UTF16BE || encoding == TFE_UTF16LE
 
 	// Special heuristics to be sure it's a valid text files
 	if check_75percent_text && !is_75percent_ascii(&text) {
-		return TextAutoDecode{Text: "", Encoding: NotText}, nil
+		return TextAutoDecode{Text: "", Encoding: TFE_NotText}, nil
 	}
-	if encoding != EightBit && contains_binary_chars(&text, true) {
-		return TextAutoDecode{Text: "", Encoding: NotText}, nil
+	if encoding != TFE_EightBit && contains_binary_chars(&text, true) {
+		return TextAutoDecode{Text: "", Encoding: TFE_NotText}, nil
 	}
 
 	e := encoding
 	if check_ascii {
 		if is_ascii_text(&text) {
-			e = ASCII
+			e = TFE_ASCII
 		} else {
-			e = UTF8
+			e = TFE_UTF8
 		}
 	}
 
@@ -404,7 +406,7 @@ func check_utf16(buffer_1000 []byte, n int, encoding TextFileEncoding) (string, 
 
 	if n == MILLE {
 		off := 0
-		if encoding == UTF16BE || encoding == UTF16BEBOM {
+		if encoding == TFE_UTF16BE || encoding == TFE_UTF16BEBOM {
 			off = 1
 		}
 
@@ -423,7 +425,7 @@ func check_utf16(buffer_1000 []byte, n int, encoding TextFileEncoding) (string, 
 
 	// If there is no BOM, actually UTF-16 BE can be decoded as UTF-16 LE and also the reverse in most of cases.
 	// To be sure there is no confusion, add an extra heuristics to check that content is 75% ASCII
-	if (encoding == UTF16LE || encoding == UTF16BE) && !is_75percent_ascii(&s) {
+	if (encoding == TFE_UTF16LE || encoding == TFE_UTF16BE) && !is_75percent_ascii(&s) {
 		return "", false
 	}
 
@@ -440,16 +442,16 @@ func utf16_decode(buffer []byte, encoding TextFileEncoding) (string, bool) {
 	}
 
 	if len(buffer) == 0 {
-		return "", encoding == UTF16LE || encoding == UTF16BE
+		return "", encoding == TFE_UTF16LE || encoding == TFE_UTF16BE
 	}
 
 	off := 0
-	if encoding == UTF16BE || encoding == UTF16BEBOM {
+	if encoding == TFE_UTF16BE || encoding == TFE_UTF16BEBOM {
 		off = 1
 	}
 
 	start := 0
-	if encoding == UTF16BEBOM || encoding == UTF16LEBOM {
+	if encoding == TFE_UTF16BEBOM || encoding == TFE_UTF16LEBOM {
 		// Check BOM
 		if len(buffer) < 2 || buffer[off] != 0xFF || buffer[1-off] != 0xFE {
 			return "", false
