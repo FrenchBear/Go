@@ -59,8 +59,4 @@ func testMyglob(pattern string, autorecurse bool, ignoreDirs []string, loops int
 		fmt.Printf("Iterator search in %.3fs\n\n", duration.Seconds())
 		durations = append(durations, duration.Seconds())
 	}
-
-	if loops > 1 {
-		// Implement median if needed
-	}
 }

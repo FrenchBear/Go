@@ -14,7 +14,7 @@ import (
 )
 
 const (
-	libVersion = "1.5.4"
+	libVersion = "1.0.0"
 )
 
 // Segment is an interface for a segment of a glob pattern.
