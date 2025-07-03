@@ -13,6 +13,8 @@ import (
 	"strings"
 	"syscall"
 	"unsafe"
+
+	"golang.org/x/text/cases"
 )
 
 func is_hidden_folder(path string) (bool, bool) {
@@ -33,8 +35,8 @@ func is_hidden_folder(path string) (bool, bool) {
 	_, d := filepath.Split(path)
 
 	// Check the HIDDEN and SYSTEM bits.
-	isHidden := (attributes & syscall.FILE_ATTRIBUTE_HIDDEN) != 0 || strings.HasPrefix(d, ".")
-	isSystem := (attributes & syscall.FILE_ATTRIBUTE_SYSTEM) != 0
+	isHidden := (attributes & syscall.FILE_ATTRIBUTE_HIDDEN) != 0 || strings.HasPrefix(d, ".") 
+	isSystem := (attributes & syscall.FILE_ATTRIBUTE_SYSTEM) != 0 || ( (attributes & syscall.FILE_ATTRIBUTE_HIDDEN) != 0 && strings.HasPrefix(d, "$"))
 
 	return isHidden, isHidden && isSystem
 }
@@ -50,9 +52,16 @@ var (
 	strCmpLogicalW = shlwapi.NewProc("StrCmpLogicalW")
 )
 
+func path_comparer(sortmethod int, s1, s2 string) int {
+	switch sortmethod {
+	case 2: return path_comparer_CaseFold(s1, s2)
+	default: return path_comparer_StrCmpLogicalW(s1, s2)
+	}
+}
+
 // StrCmpLogicalWGo is a Go wrapper for the Windows API StrCmpLogicalW function.
 // It compares two strings using the natural sort algorithm, similar to Windows File Explorer.
-func path_comparer(s1, s2 string) int {
+func path_comparer_StrCmpLogicalW(s1, s2 string) int {
 	// Convert Go strings to null-terminated UTF-16 pointers for Windows API
 	// syscall.UTF16PtrFromString allocates memory that needs to be freed
 	// It's safer to use the x/sys/windows package for this.
@@ -83,4 +92,14 @@ func path_comparer(s1, s2 string) int {
 	// > 0 if psz1 comes after psz2
 	// We cast the result to int64 first to handle potential negative return values correctly.
 	return int(int32(ret))
+}
+
+func path_comparer_CaseFold(s1, s2 string) int {
+	// The caser for folding. It's stateless and safe for concurrent use.
+	// It's efficient to create it once and reuse it.
+	folder := cases.Fold()
+
+	str1 := folder.String(s1)
+	str2 := folder.String(s2)
+	return strings.Compare(str1, str2)
 }

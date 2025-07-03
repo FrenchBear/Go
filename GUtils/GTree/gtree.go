@@ -9,13 +9,10 @@
 // 2025-07-02	PV		1.2.0 Separate Linux and Windows code
 // 2025-07-02	PV		1.2.1 Usage using MyMarkup
 // 2025-07-02	PV		1.2.2 Print links
+// 2025-07-03	PV		1.3.0 Junctions, use sortmethod, maxdepth
 
-// ToDo: use sortmethod
 // ToDo: hidden links
 // ToDo: Show links, hidden and well-hidden folders in color
-// ToDo: Show development reparse data
-// ToDo: Option -d max_depth
-// ToDo: Process junctions (in C:\)
 
 package main
 
@@ -34,46 +31,51 @@ import (
 // Options
 var h1, h2 bool
 var verbose bool
-var showall bool
+var show_hidden bool
+var show_hidden_and_system bool
 var sortmethod int
 var sortmethod1 bool
 var sortmethod2 bool
+var maxdepth int
 
 // Global constants
 const APP_NAME string = "gtree"
-const APP_VERSION string = "1.2.2"
+const APP_VERSION string = "1.3.0"
 
 // usage overrides default flag version
 func usage() {
 	fmt.Printf("%s %s\nVisual directory structure in Go\n\n", APP_NAME, APP_VERSION)
-	// fmt.Printf("Usage: %s [-?|-h] [-v] [-a] directory\nOptions", APP_NAME)
-	// fmt.Println("")
 
-	text := `⌊Usage⌋: {APP_NAME} ¬[⦃?⦄|⦃-?⦄|⦃-h⦄] [-⦃a⦄] [-⦃s⦄ ⦃0⦄|⦃1⦄|⦃2⦄] [-⦃v⦄] [⟨dir⟩]
+	text := `⌊Usage⌋: {APP_NAME} ¬[⦃?⦄|⦃-?⦄|⦃-h⦄] [-⦃a⦄|-⦃A⦄] [-⦃s⦄ ⦃0⦄|⦃1⦄|⦃2⦄] [⦃-d⦄ ⟨max_depth⟩] [-⦃v⦄] [⟨dir⟩]
 
 ⌊Options⌋:
-⦃?⦄|⦃-?⦄|⦃-h⦄  ¬Show this message
-⦃-a⦄       ¬Show all directories, including hidden directories and directories starting with a dot
-⦃-s⦄ ⦃0⦄|⦃1⦄|⦃2⦄ ¬Sort method: 0=Default, 1=Windows File Explorer (Windows only), 2=Case fold
-⦃-v⦄       ¬Verbose output
-⟨dir⟩      ¬Starting directory`
+⦃?⦄|⦃-?⦄|⦃-h⦄      ¬Show this message
+⦃-a⦄           ¬Show hidden directories and those starting with a dot
+⦃-A⦄           ¬Show system+hidden directories and those starting with a dot or a $
+⦃-s⦄ ⦃0⦄|⦃1⦄|⦃2⦄     ¬Sort method: 0=Default, 1=Windows File Explorer (Windows only), 2=Case fold
+⦃-d⦄ ⟨max_depth⟩ ¬Limits recursion to max_depth folders, default is 0 meaning no limitation
+⦃-v⦄           ¬Verbose output
+⟨dir⟩          ¬Starting directory`
 
 	MyMarkup.RenderMarkup(strings.Replace(text, "{APP_NAME}", APP_NAME, -1))
 }
 
 type DataBag = struct {
-	DirsCount  int
-	LinksCount int
+	DirCount      int
+	SymLinkDCount int
+	JunctionCount int
 }
 
 func main() {
 	flag.BoolVar(&h1, "h", false, "Shows this message")
 	flag.BoolVar(&h2, "?", false, "Shows this message")
 	flag.BoolVar(&verbose, "v", false, "Verbose output")
-	flag.BoolVar(&showall, "a", false, "Show all (hidden) directories")
+	flag.BoolVar(&show_hidden, "a", false, "Show all (hidden) directories")
+	flag.BoolVar(&show_hidden_and_system, "A", false, "Show all (hidden and hidden+system) directories")
 	flag.IntVar(&sortmethod, "s", 0, "Sort method: 0=Default, 1=Windows File Explorer, 2=Case fold")
 	flag.BoolVar(&sortmethod1, "s1", false, "Sort method 1")
 	flag.BoolVar(&sortmethod2, "s2", false, "Sort method 2")
+	flag.IntVar(&maxdepth, "d", 0, "Max recursion depth, 0=no limit")
 
 	flag.Usage = usage
 	flag.Parse()
@@ -91,6 +93,11 @@ func main() {
 		sortmethod = 2
 	}
 
+	// show_hidden_and_system implies show_hidden
+	if show_hidden_and_system {
+		show_hidden=true
+	}
+
 	var root string
 	if flag.NArg() > 1 {
 		flag.Usage()
@@ -101,33 +108,44 @@ func main() {
 		root = "."
 	}
 
-	b := DataBag{DirsCount: 1, LinksCount: 0}
+	b := DataBag{DirCount: 1, SymLinkDCount: 0}
 	start := time.Now()
-	doPrint(&b, root)
+	doPrint(&b, root, maxdepth)
 
 	duration := time.Since(start)
 	if verbose {
-		fmt.Printf("%d directorie(s)", b.DirsCount)
-		if b.LinksCount > 0 {
-			fmt.Printf(", %d link(s)", b.LinksCount)
+		fmt.Printf("%d directorie(s)", b.DirCount)
+		if b.SymLinkDCount > 0 {
+			fmt.Printf(", %d SymLinkD(s)", b.SymLinkDCount)
+		}
+		if b.JunctionCount > 0 {
+			fmt.Printf(", %d Junction(s)", b.JunctionCount)
 		}
 		fmt.Printf(" in %.3fs\n", duration.Seconds())
 	}
 }
 
-type DirLink struct {
-	IsLink  bool
-	DirName string
-	Target  string
+type DirEntryType int
+
+const (
+	DET_Dir DirEntryType = iota
+	DET_SymLinkD
+	DET_Junction
+)
+
+type DirEntryData struct {
+	Type   DirEntryType
+	Name   string
+	Target string
 }
 
-func doPrint(b *DataBag, root string) {
+func doPrint(b *DataBag, root string, d int) {
 	entries, err := os.ReadDir(root)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "%s: '%s' is not a valid directory: %v\n", APP_NAME, root, err)
+		//fmt.Fprintf(os.Stderr, "%s: '%s' is not a valid directory: %v\n", APP_NAME, root, err)
 		return
 	}
-	infos := make([]DirLink, 0)
+	infos := make([]DirEntryData, 0)
 	for _, entry := range entries {
 		fp := filepath.Join(root, entry.Name())
 		info, err := entry.Info()
@@ -136,30 +154,28 @@ func doPrint(b *DataBag, root string) {
 			continue
 		} else if info.IsDir() {
 			h, sh := is_hidden_folder(fp)
-			if sh || h && !showall {
+			if sh && !show_hidden_and_system || h && !show_hidden {
 				continue
 			}
-			infos = append(infos, DirLink{IsLink: false, DirName: info.Name()})
-		} else if info.Mode()&os.ModeSymlink != 0 {
-			temp, err1 := os.Readlink(fp)
-			newPath, err2 := filepath.EvalSymlinks(temp)
-			if err1 == nil && err2 == nil {
-				infos = append(infos, DirLink{IsLink: true, DirName: info.Name(), Target: newPath})
-			}
+			infos = append(infos, DirEntryData{Type: DET_Dir, Name: info.Name()})
+		} else if ok, target, _ := IsSymLinkD(fp); ok {
+			infos = append(infos, DirEntryData{Type: DET_SymLinkD, Name: info.Name(), Target: target})
+		} else if ok, target, _ := IsJunction(fp); ok {
+			infos = append(infos, DirEntryData{Type: DET_Junction, Name: info.Name(), Target: target})
 		}
 	}
 	sort.Slice(infos, func(i, j int) bool {
-		return path_comparer(infos[i].DirName, infos[j].DirName) < 0
+		return path_comparer(sortmethod, infos[i].Name, infos[j].Name) < 0
 	})
 
 	fmt.Println(root)
 
 	for i, info := range infos {
-		printTree(b, root, info, "", i == len(infos)-1)
+		printTree(b, root, info, "", i == len(infos)-1, d-1)
 	}
 }
 
-func printTree(b *DataBag, root string, subdir DirLink, prefix string, is_last bool) {
+func printTree(b *DataBag, root string, subdir DirEntryData, prefix string, is_last bool, depth int) {
 	var entry_prefix string
 	var new_prefix string
 	if is_last {
@@ -170,24 +186,28 @@ func printTree(b *DataBag, root string, subdir DirLink, prefix string, is_last b
 		new_prefix = prefix + "│   "
 	}
 
-	fmt.Print(prefix + entry_prefix + subdir.DirName)
-	if subdir.IsLink {
-		fmt.Println(" -> " + subdir.Target)
-		b.LinksCount++
+	fmt.Print(prefix + entry_prefix + subdir.Name)
+	switch subdir.Type {
+	case DET_SymLinkD:
+		fmt.Println(" ->", subdir.Target, " [SymLinkD]")
+		b.SymLinkDCount++
+		return
+	case DET_Junction:
+		fmt.Println(" -> ", subdir.Target, " [Junction]")
+		b.JunctionCount++
 		return
 	}
 
-	b.DirsCount++
-	fmt.Println("")
+	b.DirCount++
 
-	subdir_fp := filepath.Join(root, subdir.DirName)
+	subdir_fp := filepath.Join(root, subdir.Name)
 	entries, err := os.ReadDir(subdir_fp)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "%s: '%s' is not a valid directory: %v:\n", APP_NAME, subdir_fp, err)
+		fmt.Println("  ... ?")
 		return
 	}
 
-	infos := make([]DirLink, 0)
+	infos := make([]DirEntryData, 0)
 	for _, entry := range entries {
 		fp := filepath.Join(root, entry.Name())
 		info, err := entry.Info()
@@ -196,23 +216,40 @@ func printTree(b *DataBag, root string, subdir DirLink, prefix string, is_last b
 		} else if info.IsDir() {
 			h, sh := is_hidden_folder(fp)
 			// Ignore well-hidden directories such as $RECYCLE.BIN
-			if sh || h && !showall {
+			if sh && !show_hidden_and_system || h && !show_hidden {
 				continue
 			}
-			infos = append(infos, DirLink{IsLink: false, DirName: info.Name()})
-		} else if info.Mode()&os.ModeSymlink != 0 {
-			temp, err1 := os.Readlink(fp)
-			newPath, err2 := filepath.EvalSymlinks(temp)
-			if err1 == nil && err2 == nil {
-				infos = append(infos, DirLink{IsLink: true, DirName: info.Name(), Target: newPath})
-			}
+			infos = append(infos, DirEntryData{Type: DET_Dir, Name: info.Name()})
+			// } else if info.Mode()&os.ModeSymlink != 0 {
+			// 	temp, err1 := os.Readlink(fp)
+			// 	newPath, err2 := filepath.EvalSymlinks(temp)
+			// 	if err1 == nil && err2 == nil {
+			// 		infos = append(infos, DirEntryData{IsLink: true, Name: info.Name(), Target: newPath})
+			// 	}
+			// }
+		} else if ok, target, _ := IsSymLinkD(fp); ok {
+			infos = append(infos, DirEntryData{Type: DET_SymLinkD, Name: info.Name(), Target: target})
+		} else if ok, target, _ := IsJunction(fp); ok {
+			infos = append(infos, DirEntryData{Type: DET_Junction, Name: info.Name(), Target: target})
 		}
+
 	}
+
+	if depth == 0 {
+		if len(infos) > 0 {
+			fmt.Println(" ...")
+		} else {
+			fmt.Println()
+		}
+		return
+	}
+	fmt.Println("")
+
 	sort.Slice(infos, func(i, j int) bool {
-		return path_comparer(infos[i].DirName, infos[j].DirName) < 0
+		return path_comparer(sortmethod, infos[i].Name, infos[j].Name) < 0
 	})
 
 	for i, info := range infos {
-		printTree(b, subdir_fp, info, new_prefix, i == len(infos)-1)
+		printTree(b, subdir_fp, info, new_prefix, i == len(infos)-1, depth-1)
 	}
 }

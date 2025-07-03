@@ -19,7 +19,8 @@ func is_hidden_folder(path string) (bool, bool) {
 	return strings.HasPrefix(d, "."), false
 }
 
-func path_comparer(s1, s2 string) int {
+// Sortmethod is ignored in Linux, it's always sorted using casefold
+func path_comparer(_sortmethod int, s1, s2 string) int {
 	// The caser for folding. It's stateless and safe for concurrent use.
 	// It's efficient to create it once and reuse it.
 	folder := cases.Fold()

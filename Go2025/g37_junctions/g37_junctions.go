@@ -6,8 +6,10 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 	"os"
+	"path/filepath"
 	"strings"
 	"syscall"
 	"unsafe"
@@ -49,7 +51,7 @@ func IsJunction(path string) (bool, error) {
 	// It's a reparse point, now we need to check if it's a junction.
 	// Open the file/directory handle with flags to access the reparse point data.
 	fd, err := windows.CreateFile(
-		syscall.StringToUTF16Ptr(path),
+		pathUTF16Ptr,
 		windows.GENERIC_READ,
 		windows.FILE_SHARE_READ,
 		nil,
@@ -60,6 +62,20 @@ func IsJunction(path string) (bool, error) {
 		windows.FILE_FLAG_BACKUP_SEMANTICS|windows.FILE_FLAG_OPEN_REPARSE_POINT,
 		0,
 	)
+
+	// Retrieve Errno
+	var errno syscall.Errno
+	// errors.As checks if 'err' (or any error it wraps) is a syscall.Errno.
+	// If it is, it assigns it to our 'errno' variable and returns true.
+	if errors.As(err, &errno) {
+		// Now, 'errno' holds the numeric error code.
+		// We can convert it to a standard 'int'.
+		errorCode := int(errno)
+		if errorCode == 5 { // 5 is 'ERROR_ACCESS_DENIED' on Windows
+			return true, nil
+		}
+	}
+
 	if err != nil {
 		return false, err
 	}
@@ -115,12 +131,11 @@ func ReadJunction(path string) (string, error) {
 		return "", err
 	}
 
-
 	// The logic to get the reparse data is the same as in IsJunction.
 	// We repeat it here to be self-contained, but in a real app, you'd refactor.
 	fd, err := windows.CreateFile(
 		pathUTF16Ptr,
-		windows.GENERIC_READ,
+		0, //windows.GENERIC_READ,
 		windows.FILE_SHARE_READ,
 		nil,
 		windows.OPEN_EXISTING,
@@ -169,33 +184,34 @@ func ReadJunction(path string) (string, error) {
 
 	// Get a slice of the uint16 (UTF-16) characters.
 	pathSlice := (*[1024]uint16)(unsafe.Pointer(uintptr(unsafe.Pointer(rdb)) + pathOffset))
-	
+
 	// Convert the UTF-16 slice to a Go string.
 	target := syscall.UTF16ToString(pathSlice[:substituteNameLength/2+4])
 
 	// The target path is usually prefixed with "\??\". We remove it to get a clean path.
 	// Example: "\??\C:\Users\Default" becomes "C:\Users\Default"
-	
+
 	cleanTarget := strings.TrimPrefix(target, `\??\`)
 
 	return cleanTarget, nil
 }
 
-
 func main() {
 	// Let's test the paths from your DIR output
 	pathsToTest := []string{
-		`C:\Development`, // A Junction
-		`C:\Tmp`,          // A Junction
-		`C:\DocumentsOD`,  // A Directory Symlink
-		`C:\Program Files`, // A regular directory
+		// `C:\Development`,       // A Junction
+		// `C:\Tmp`,               // A Junction
+		// `C:\DocumentsOD`,       // A Directory Symlink
+		// `C:\Program Files`,     // A regular directory
+		// `C:\vfcompat_link.dll`, // A file SymLink
+		`C:\Documents and Settings`, // A Junction
 	}
-    
-    // Create dummy files/links for testing if they don't exist
-    // This requires admin privileges to create symlinks/junctions
-    fmt.Println("NOTE: For accurate testing, these paths should exist as described.")
-    fmt.Println("You may need to run 'mklink /J C:\\Tmp C:\\Temp' as an example.")
-    fmt.Println("--------------------------------------------------")
+
+	// Create dummy files/links for testing if they don't exist
+	// This requires admin privileges to create symlinks/junctions
+	fmt.Println("NOTE: For accurate testing, these paths should exist as described.")
+	fmt.Println("You may need to run 'mklink /J C:\\Tmp C:\\Temp' as an example.")
+	fmt.Println("--------------------------------------------------")
 
 	for _, path := range pathsToTest {
 		fi, err := os.Lstat(path)
@@ -208,9 +224,15 @@ func main() {
 
 		// Using standard Go library to check for symlinks
 		if fi.Mode()&os.ModeSymlink != 0 {
-			target, _ := os.Readlink(path)
-			fmt.Printf("  - Type: Symbolic Link (detected by Go's os.ModeSymlink)\n")
-			fmt.Printf("  - Target: %s\n", target)
+			temp, err1 := os.Readlink(path)
+			target, err2 := filepath.EvalSymlinks(temp)
+			if err1 == nil && err2 == nil {
+				fmt.Printf("  - Type: Symbolic Link (detected by Go's os.ModeSymlink)\n")
+				fmt.Printf("  - Target: %s\n", target)
+			} else {
+				fmt.Printf("  - Possibly file link\n")
+			}
+
 		} else {
 			// Check if it's a junction using our custom function
 			isJunc, err := IsJunction(path)
