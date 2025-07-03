@@ -1,0 +1,103 @@
+Conversation with Gemini
+
+On Windows, NTFS volumes have "reparse points" in folders hierarchy, among them, junctions and directory symbolic links, indicated by <JUNCTION> and <SYMLINKD> by DIR command. For instance, when I do a DIR C:\ on my machine:
+
+
+dir c:\
+ Volume in drive C is WOTAN
+ Volume Serial Number is C494-35C2
+
+ Directory of c:\
+
+12/03/2025  02:32           112 184 appverifUI.dll
+26/06/2025  21:59    <DIR>          Backup
+28/01/2023  21:41    <DIR>          BlazorApps
+24/03/2024  15:10    <JUNCTION>     Development [\??\Volume{29f0a317-0d84-4056-a781-98c3e4788961}\]
+19/09/2024  10:25    <SYMLINKD>     DocumentsOD [D:\Pierre\OneDrive\DocumentsOD]
+24/09/2022  06:18    <SYMLINKD>     Downloads [C:\Users\Pierr\Downloads]
+08/02/2025  22:58    <DIR>          Games
+30/06/2023  15:52    <DIR>          Hyper-V
+22/11/2024  12:48    <DIR>          inetpub
+24/09/2022  06:49    <DIR>          Intel
+25/06/2025  09:25                90 logUploaderSettings.ini
+25/06/2025  09:25                90 logUploaderSettings_temp.ini
+15/05/2025  14:19    <DIR>          Microsoft Shared
+19/09/2024  10:25    <SYMLINKD>     MusicOD [D:\Pierre\OneDrive\MusicOD]
+10/04/2025  23:42    <DIR>          Patch My PC
+01/04/2024  09:26    <DIR>          PerfLogs
+19/09/2024  10:25    <SYMLINKD>     PicturesODMisc [D:\Pierre\OneDrive\PicturesODMisc]
+19/09/2024  10:26    <SYMLINKD>     PicturesODPerso [D:\Pierre\OneDrive\PicturesODPerso]
+02/07/2025  02:16    <DIR>          Program Files
+01/07/2025  00:48    <DIR>          Program Files (x86)
+03/07/2025  04:29    <DIR>          Temp
+09/05/2024  17:44    <JUNCTION>     Tmp [C:\Temp]
+14/05/2025  13:57    <DIR>          Users
+19/09/2024  10:24    <SYMLINKD>     Utils [D:\Pierre\OneDrive\Apps\Utils]
+23/04/2025  19:25            67 288 vfcompat.dll
+02/04/2025  23:57               547 vfcompat.dll - Shortcut.lnk
+02/04/2025  21:15    <SYMLINK>      vfcompat_link.dll [vfcompat.dll]
+01/07/2025  22:47    <DIR>          Windows
+               6 File(s)        180 199 bytes
+              22 Dir(s)  1 008 907 268 096 bytes free
+
+Now my question, how to detect such reparse points in Go programming language, and get the actual folder or device the junction link is pointing to? I already use fileinfo.Mode()&os.ModeSymlink != 0 and os.Readlink(fp) and filepath.EvalSymlinks(temp) for directories symbolic links, but this doesn't work for junctions.
+
+What's the equivalent for junctions?
+
+
+
+
+
+Of course! This is an excellent question that dives into the nuances of the Windows filesystem and how Go interacts with it. You are absolutely correct: the standard Go library's functions like os.Readlink and the os.ModeSymlink flag are designed for what Windows calls "Symbolic Links" (<SYMLINK> or <SYMLINKD>), not for the older "Junction" (<JUNCTION>) points.
+
+The core reason for this difference is that while both are types of reparse points, they have different reparse tags and structures at the NTFS driver level. Go's standard library only recognizes the IO_REPARSE_TAG_SYMLINK tag.
+
+To detect junctions and read their target, you need to drop down to the Windows API level. The modern and idiomatic way to do this in Go is by using the golang.org/x/sys/windows package, not the older syscall package.
+
+Here is a complete breakdown and a working code example.
+
+The Theory: How to Detect and Read a Junction
+
+    Check for a Reparse Point: First, you need to get the file's attributes. Any junction or symlink will have the FILE_ATTRIBUTE_REPARSE_POINT attribute set.
+
+    Open the Reparse Point Itself: When you try to open a file that is a reparse point, Windows by default follows the link. To inspect the reparse point itself, you must open a handle to it using the FILE_FLAG_OPEN_REPARSE_POINT flag. For directories, you also need FILE_FLAG_BACKUP_SEMANTICS.
+
+    Get the Reparse Data: With the handle open, you use the DeviceIoControl function with the FSCTL_GET_REPARSE_POINT control code. This fills a buffer with the reparse data.
+
+    Check the Reparse Tag: The returned data buffer contains a ReparseTag field.
+
+        For a Junction, this tag will be IO_REPARSE_TAG_MOUNT_POINT.
+
+        For a Symbolic Link, this tag would be IO_REPARSE_TAG_SYMLINK.
+
+    Parse the Target Path: If the tag indicates a junction, the data buffer also contains the target path information. For a junction, this is called the "substitute name". It is a UTF-16 string stored within the buffer.
+
+The target path for a junction is stored in a special "non-parsed" format, typically prefixed with \??\. For example, a junction pointing to C:\Temp will have a target of \??\C:\Temp. You'll need to strip this prefix to get the clean path.
+
+--------
+
+Summary: Junctions vs. Directory Symbolic Links
+
+To recap, here is a quick reference table highlighting the differences:
+
+Feature			NTFS Junction (<JUNCTION>)						Directory Symbolic Link (<SYMLINKD>)
+
+Creation		mklink /J LinkName TargetDirectory				mklink /D LinkName TargetDirectory
+
+Target Scope	Must be a local absolute path to a directory	Can be a relative path, an absolute path,
+				on a local volume.								or a UNC path to a remote share (e.g., \\server\share).
+
+Processing		Processed on the local machine by the file 		Can be evaluated on the client or server side,
+				system driver. Transparent to most 				making them work over SMB/network shares.
+				applications.	
+
+Go os.Lstat		Does not set the os.ModeSymlink bit.			Does set the os.ModeSymlink bit.
+
+Go os.Readlink	Fails with an error like "The system cannot		Succeeds and returns the target path.
+				find the file specified." or similar.	
+
+Detection in Go	Requires Windows API calls (GetFileAttributes,	Can be detected with fileinfo.Mode() & os.ModeSymlink != 0.
+				DeviceIoControl) to check for 
+				FILE_ATTRIBUTE_REPARSE_POINT and the 
+				IO_REPARSE_TAG_MOUNT_POINT tag.	
+
