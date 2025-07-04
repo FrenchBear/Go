@@ -11,9 +11,6 @@
 // 2025-07-02	PV		1.2.2 Print links
 // 2025-07-03	PV		1.3.0 Junctions, use sortmethod, maxdepth
 
-// ToDo: hidden links
-// ToDo: Show links, hidden and well-hidden folders in color
-
 package main
 
 import (
@@ -142,7 +139,7 @@ type DirEntryData struct {
 func doPrint(b *DataBag, root string, d int) {
 	entries, err := os.ReadDir(root)
 	if err != nil {
-		//fmt.Fprintf(os.Stderr, "%s: '%s' is not a valid directory: %v\n", APP_NAME, root, err)
+		fmt.Fprintf(os.Stderr, "%s: %v\n", APP_NAME, err)
 		return
 	}
 	infos := make([]DirEntryData, 0)
@@ -153,8 +150,8 @@ func doPrint(b *DataBag, root string, d int) {
 			fmt.Fprintf(os.Stderr, "%s: Errror processing '%s' entry: %s\n", APP_NAME, root, err)
 			continue
 		} else if info.IsDir() {
-			h, sh := is_hidden_folder(fp)
-			if sh && !show_hidden_and_system || h && !show_hidden {
+			h, s := is_hidden_folder(fp)
+			if s && !show_hidden_and_system || h && !show_hidden {
 				continue
 			}
 			infos = append(infos, DirEntryData{Type: DET_Dir, Name: info.Name()})
@@ -186,7 +183,9 @@ func printTree(b *DataBag, root string, subdir DirEntryData, prefix string, is_l
 		new_prefix = prefix + "│   "
 	}
 
-	fmt.Print(prefix + entry_prefix + subdir.Name)
+	fmt.Print(prefix + entry_prefix)
+	fmt.Print(subdir.Name)
+
 	switch subdir.Type {
 	case DET_SymLinkD:
 		fmt.Println(" ->", subdir.Target, " [SymLinkD]")
@@ -214,25 +213,16 @@ func printTree(b *DataBag, root string, subdir DirEntryData, prefix string, is_l
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "%s: Errror processing '%s' entry: %s\n", APP_NAME, root, err)
 		} else if info.IsDir() {
-			h, sh := is_hidden_folder(fp)
-			// Ignore well-hidden directories such as $RECYCLE.BIN
-			if sh && !show_hidden_and_system || h && !show_hidden {
+			h, s := is_hidden_folder(fp)
+			if s && !show_hidden_and_system || h && !show_hidden {
 				continue
 			}
 			infos = append(infos, DirEntryData{Type: DET_Dir, Name: info.Name()})
-			// } else if info.Mode()&os.ModeSymlink != 0 {
-			// 	temp, err1 := os.Readlink(fp)
-			// 	newPath, err2 := filepath.EvalSymlinks(temp)
-			// 	if err1 == nil && err2 == nil {
-			// 		infos = append(infos, DirEntryData{IsLink: true, Name: info.Name(), Target: newPath})
-			// 	}
-			// }
 		} else if ok, target, _ := IsSymLinkD(fp); ok {
 			infos = append(infos, DirEntryData{Type: DET_SymLinkD, Name: info.Name(), Target: target})
 		} else if ok, target, _ := IsJunction(fp); ok {
 			infos = append(infos, DirEntryData{Type: DET_Junction, Name: info.Name(), Target: target})
 		}
-
 	}
 
 	if depth == 0 {

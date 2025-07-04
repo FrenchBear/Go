@@ -14,6 +14,43 @@ import (
 )
 
 func main() {
+	color.NoColor = false
+	color.Black("In Black")
+	color.Red("In Red")
+	color.Green("In Green")
+	color.Yellow("In Yellow")
+	color.Blue("In Blue")
+	color.Magenta("In Magenta")
+	color.Cyan("In Cyan")
+	color.White("In White")
+	color.HiBlack("In HiBlack")
+	color.HiRed("In HiRed")
+	color.HiGreen("In HiGreen")
+	color.HiYellow("In HiYellow")
+	color.HiBlue("In HiBlue")
+	color.HiMagenta("In HiMagenta")
+	color.HiCyan("In HiCyan")
+	color.HiWhite("In HiWhite")
+
+	color.Green("Green")
+	color.HiGreen("HiGreen")
+
+	fmt.Println()
+
+	gray0 := color.RGB(0, 0, 0).PrintfFunc()
+	gray32 := color.RGB(32, 32, 32).PrintfFunc()
+	gray64 := color.RGB(64, 64, 64).PrintfFunc()
+	gray96 := color.RGB(96, 96, 96).PrintfFunc()
+	gray128 := color.RGB(128, 128, 128).PrintfFunc()
+	gray0("Gray 0\n")
+	gray32("Gray 32\n")
+	gray64("Gray 64\n")
+	gray96("Gray 96\n")
+	gray128("Gray 128\n")
+
+	fmt.Println()
+
+
 	// Print with default helper functions
 	color.Cyan("Prints text in cyan.")
 	color.Blue("Prints %s in blue.", "text") // Supports fmt.Printf-like formatting
