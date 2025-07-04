@@ -47,8 +47,8 @@ func usage() {
 
 ⌊Options⌋:
 ⦃?⦄|⦃-?⦄|⦃-h⦄      ¬Show this message
-⦃-a⦄           ¬Show hidden directories and those starting with a dot
-⦃-A⦄           ¬Show system+hidden directories and those starting with a dot or a $
+⦃-a⦄           ¬Show hidden directories and directories starting with a dot
+⦃-A⦄           ¬Show system+hidden directories and directories starting with a dollar sign
 ⦃-s⦄ ⦃0⦄|⦃1⦄|⦃2⦄     ¬Sort method: 0=Default, 1=Windows File Explorer (Windows only), 2=Case fold
 ⦃-d⦄ ⟨max_depth⟩ ¬Limits recursion to max_depth folders, default is 0 meaning no limitation
 ⦃-v⦄           ¬Verbose output
@@ -62,6 +62,11 @@ type DataBag = struct {
 	SymLinkDCount int
 	JunctionCount int
 }
+
+// func main() {
+// 	h, s := is_hidden_folder(`C:\Users\Pierr\Cookies`)
+// 	fmt.Printf("h=%v, s=%v\n", h, s)
+// }
 
 func main() {
 	flag.BoolVar(&h1, "h", false, "Shows this message")
@@ -92,7 +97,7 @@ func main() {
 
 	// show_hidden_and_system implies show_hidden
 	if show_hidden_and_system {
-		show_hidden=true
+		show_hidden = true
 	}
 
 	var root string
@@ -105,13 +110,13 @@ func main() {
 		root = "."
 	}
 
-	b := DataBag{DirCount: 1, SymLinkDCount: 0}
+	b := DataBag{}
 	start := time.Now()
 	doPrint(&b, root, maxdepth)
 
 	duration := time.Since(start)
 	if verbose {
-		fmt.Printf("%d directorie(s)", b.DirCount)
+		fmt.Printf("%d subdirectorie(s)", b.DirCount)
 		if b.SymLinkDCount > 0 {
 			fmt.Printf(", %d SymLinkD(s)", b.SymLinkDCount)
 		}
@@ -136,7 +141,7 @@ type DirEntryData struct {
 	Target string
 }
 
-func doPrint(b *DataBag, root string, d int) {
+func doPrint(b *DataBag, root string, maxdepth int) {
 	entries, err := os.ReadDir(root)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "%s: %v\n", APP_NAME, err)
@@ -149,16 +154,22 @@ func doPrint(b *DataBag, root string, d int) {
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "%s: Errror processing '%s' entry: %s\n", APP_NAME, root, err)
 			continue
-		} else if info.IsDir() {
+		} else {
 			h, s := is_hidden_folder(fp)
+
+			// fmt.Printf("%s  h=%v, s=%v\n", fp, h, s)
+
 			if s && !show_hidden_and_system || h && !show_hidden {
 				continue
 			}
-			infos = append(infos, DirEntryData{Type: DET_Dir, Name: info.Name()})
-		} else if ok, target, _ := IsSymLinkD(fp); ok {
-			infos = append(infos, DirEntryData{Type: DET_SymLinkD, Name: info.Name(), Target: target})
-		} else if ok, target, _ := IsJunction(fp); ok {
-			infos = append(infos, DirEntryData{Type: DET_Junction, Name: info.Name(), Target: target})
+
+			if info.IsDir() {
+				infos = append(infos, DirEntryData{Type: DET_Dir, Name: info.Name()})
+			} else if ok, target, _ := IsSymLinkD(fp); ok {
+				infos = append(infos, DirEntryData{Type: DET_SymLinkD, Name: info.Name(), Target: target})
+			} else if ok, target, _ := IsJunction(fp); ok {
+				infos = append(infos, DirEntryData{Type: DET_Junction, Name: info.Name(), Target: target})
+			}
 		}
 	}
 	sort.Slice(infos, func(i, j int) bool {
@@ -168,7 +179,7 @@ func doPrint(b *DataBag, root string, d int) {
 	fmt.Println(root)
 
 	for i, info := range infos {
-		printTree(b, root, info, "", i == len(infos)-1, d-1)
+		printTree(b, root, info, "", i == len(infos)-1, maxdepth-1)
 	}
 }
 
@@ -212,16 +223,19 @@ func printTree(b *DataBag, root string, subdir DirEntryData, prefix string, is_l
 		info, err := entry.Info()
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "%s: Errror processing '%s' entry: %s\n", APP_NAME, root, err)
-		} else if info.IsDir() {
+		} else {
 			h, s := is_hidden_folder(fp)
 			if s && !show_hidden_and_system || h && !show_hidden {
 				continue
 			}
-			infos = append(infos, DirEntryData{Type: DET_Dir, Name: info.Name()})
-		} else if ok, target, _ := IsSymLinkD(fp); ok {
-			infos = append(infos, DirEntryData{Type: DET_SymLinkD, Name: info.Name(), Target: target})
-		} else if ok, target, _ := IsJunction(fp); ok {
-			infos = append(infos, DirEntryData{Type: DET_Junction, Name: info.Name(), Target: target})
+
+			if info.IsDir() {
+				infos = append(infos, DirEntryData{Type: DET_Dir, Name: info.Name()})
+			} else if ok, target, _ := IsSymLinkD(fp); ok {
+				infos = append(infos, DirEntryData{Type: DET_SymLinkD, Name: info.Name(), Target: target})
+			} else if ok, target, _ := IsJunction(fp); ok {
+				infos = append(infos, DirEntryData{Type: DET_Junction, Name: info.Name(), Target: target})
+			}
 		}
 	}
 

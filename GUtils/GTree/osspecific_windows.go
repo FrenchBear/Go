@@ -35,8 +35,8 @@ func is_hidden_folder(path string) (bool, bool) {
 	_, d := filepath.Split(path)
 
 	// Check the HIDDEN and SYSTEM bits.
-	isHidden := (attributes & syscall.FILE_ATTRIBUTE_HIDDEN) != 0 || strings.HasPrefix(d, ".") 
-	isSystem := (attributes & syscall.FILE_ATTRIBUTE_SYSTEM) != 0 || ( (attributes & syscall.FILE_ATTRIBUTE_HIDDEN) != 0 && strings.HasPrefix(d, "$"))
+	isHidden := (attributes&syscall.FILE_ATTRIBUTE_HIDDEN) != 0 || strings.HasPrefix(d, ".")
+	isSystem := (attributes&syscall.FILE_ATTRIBUTE_SYSTEM) != 0 || ((attributes&syscall.FILE_ATTRIBUTE_HIDDEN) != 0 && strings.HasPrefix(d, "$"))
 
 	return isHidden, isHidden && isSystem
 }
@@ -54,8 +54,10 @@ var (
 
 func path_comparer(sortmethod int, s1, s2 string) int {
 	switch sortmethod {
-	case 2: return path_comparer_CaseFold(s1, s2)
-	default: return path_comparer_StrCmpLogicalW(s1, s2)
+	case 2:
+		return path_comparer_CaseFold(s1, s2)
+	default:
+		return path_comparer_StrCmpLogicalW(s1, s2)
 	}
 }
 
