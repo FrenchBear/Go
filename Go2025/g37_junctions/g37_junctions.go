@@ -6,7 +6,6 @@
 package main
 
 import (
-	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -52,7 +51,7 @@ func IsJunction(path string) (bool, error) {
 	// Open the file/directory handle with flags to access the reparse point data.
 	fd, err := windows.CreateFile(
 		pathUTF16Ptr,
-		windows.GENERIC_READ,
+		0, //windows.GENERIC_READ,
 		windows.FILE_SHARE_READ,
 		nil,
 		windows.OPEN_EXISTING,
@@ -63,18 +62,18 @@ func IsJunction(path string) (bool, error) {
 		0,
 	)
 
-	// Retrieve Errno
-	var errno syscall.Errno
-	// errors.As checks if 'err' (or any error it wraps) is a syscall.Errno.
-	// If it is, it assigns it to our 'errno' variable and returns true.
-	if errors.As(err, &errno) {
-		// Now, 'errno' holds the numeric error code.
-		// We can convert it to a standard 'int'.
-		errorCode := int(errno)
-		if errorCode == 5 { // 5 is 'ERROR_ACCESS_DENIED' on Windows
-			return true, nil
-		}
-	}
+	// // Retrieve Errno
+	// var errno syscall.Errno
+	// // errors.As checks if 'err' (or any error it wraps) is a syscall.Errno.
+	// // If it is, it assigns it to our 'errno' variable and returns true.
+	// if errors.As(err, &errno) {
+	// 	// Now, 'errno' holds the numeric error code.
+	// 	// We can convert it to a standard 'int'.
+	// 	errorCode := int(errno)
+	// 	if errorCode == 5 { // 5 is 'ERROR_ACCESS_DENIED' on Windows
+	// 		return true, nil
+	// 	}
+	// }
 
 	if err != nil {
 		return false, err
@@ -167,6 +166,54 @@ func ReadJunction(path string) (string, error) {
 	// Cast the buffer to the reparse data structure.
 	rdb := (*reparseDataBuffer)(unsafe.Pointer(&buffer[0]))
 
+	/*
+	bytesArrray := (*[1024]uint8)(unsafe.Pointer(uintptr(unsafe.Pointer(rdb)) ))
+	for i:=0 ; i<24 ; i++ {
+		fmt.Printf("%02x: %02x %3d\n", i, bytesArrray[i], bytesArrray[i])
+	}
+	fmt.Println()
+	*/
+
+	// The path information for a junction starts after the header.
+	// The structure in C is a union, but for a junction (mount point),
+	// it contains SubstituteNameOffset, SubstituteNameLength,
+	// PrintNameOffset, and PrintNameLength, followed by the PathBuffer.
+	//
+	// For simplicity, we can calculate the start of the path buffer.
+	// The path starts at an offset inside the generic PathBuffer.
+	// Let's find the Substitute Name, which is the actual target.
+	// The offset is relative to the start of the PathBuffer field.
+
+	mySubstituteNameOffset := *(*uint16)(unsafe.Pointer(uintptr(unsafe.Pointer(rdb)) + 8))
+	mySubstituteNameLength := *(*uint16)(unsafe.Pointer(uintptr(unsafe.Pointer(rdb)) + 10))
+	myPrintNameOffset := *(*uint16)(unsafe.Pointer(uintptr(unsafe.Pointer(rdb)) + 12))
+	myPrintNameLength := *(*uint16)(unsafe.Pointer(uintptr(unsafe.Pointer(rdb)) + 14))
+	// fmt.Println("mySubstituteNameOffset:", mySubstituteNameOffset)
+	// fmt.Println("mySubstituteNameLength:", mySubstituteNameLength)
+	// fmt.Println("myPrintNameOffset:", myPrintNameOffset)
+	// fmt.Println("myPrintNameLength:", myPrintNameLength)
+	// fmt.Println("")
+
+	myNameOffset :=myPrintNameOffset
+	myNameLength := myPrintNameLength
+	if myNameLength == 0 {
+		myNameLength = mySubstituteNameLength
+		myNameOffset = mySubstituteNameOffset
+	}
+
+	myNameLength = mySubstituteNameLength
+	myNameOffset = mySubstituteNameOffset
+
+	myPathSlice := (*[1024]uint16)(unsafe.Pointer(uintptr(unsafe.Pointer(rdb)) + 16+uintptr(myNameOffset)))
+	myTarget := syscall.UTF16ToString(myPathSlice[:myNameLength/2+4])
+	// fmt.Println("«"+t+"»")
+	// fmt.Println()
+	return strings.TrimPrefix(myTarget, `\??\`), nil
+
+	// Original Gemini code, already fixed manually, but still problematid with Google Drive using SubstitureName field
+	// and nor printName field
+
+	/*
 	// The path information for a junction starts after the header.
 	// The structure in C is a union, but for a junction (mount point),
 	// it contains SubstituteNameOffset, SubstituteNameLength,
@@ -194,17 +241,19 @@ func ReadJunction(path string) (string, error) {
 	cleanTarget := strings.TrimPrefix(target, `\??\`)
 
 	return cleanTarget, nil
+	*/
 }
 
 func main() {
 	// Let's test the paths from your DIR output
 	pathsToTest := []string{
-		// `C:\Development`,       // A Junction
-		// `C:\Tmp`,               // A Junction
+		`C:\Development`,       // A Junction
+		`C:\Tmp`,               // A Junction
 		// `C:\DocumentsOD`,       // A Directory Symlink
 		// `C:\Program Files`,     // A regular directory
 		// `C:\vfcompat_link.dll`, // A file SymLink
-		`C:\Documents and Settings`, // A Junction
+		// `C:\Documents and Settings`, // A Junction
+		`C:\Users\Pierr\GoogleDrive`, // A Junction
 	}
 
 	// Create dummy files/links for testing if they don't exist
