@@ -123,22 +123,11 @@ func IsJunction(path string) (bool, string, error) {
 	// The path starts at an offset inside the generic PathBuffer.
 	// Let's find the Substitute Name, which is the actual target.
 	// The offset is relative to the start of the PathBuffer field.
-	substituteNameOffset := unsafe.Offsetof(rdb.PathBuffer) + 4 // offset for SubstituteNameOffset/Length
-	substituteNameLength := *(*uint16)(unsafe.Pointer(uintptr(unsafe.Pointer(rdb)) + substituteNameOffset + 2))
 
-	// The path itself starts at a further offset
-	pathOffset := substituteNameOffset + 4 // an additional 4 for PrintNameOffset/Length
+	mySubstituteNameOffset := *(*uint16)(unsafe.Pointer(uintptr(unsafe.Pointer(rdb)) + 8))
+	mySubstituteNameLength := *(*uint16)(unsafe.Pointer(uintptr(unsafe.Pointer(rdb)) + 10))
 
-	// Get a slice of the uint16 (UTF-16) characters.
-	pathSlice := (*[1024]uint16)(unsafe.Pointer(uintptr(unsafe.Pointer(rdb)) + pathOffset))
-
-	// Convert the UTF-16 slice to a Go string.
-	target := syscall.UTF16ToString(pathSlice[:substituteNameLength/2+4])
-
-	// The target path is usually prefixed with "\??\". We remove it to get a clean path.
-	// Example: "\??\C:\Users\Default" becomes "C:\Users\Default"
-
-	cleanTarget := strings.TrimPrefix(target, `\??\`)
-
-	return true, cleanTarget, nil
+	myPathSlice := (*[1024]uint16)(unsafe.Pointer(uintptr(unsafe.Pointer(rdb)) + 16+uintptr(mySubstituteNameOffset)))
+	myTarget := syscall.UTF16ToString(myPathSlice[:mySubstituteNameLength/2+4])
+	return true, strings.TrimPrefix(myTarget, `\??\`), nil
 }
