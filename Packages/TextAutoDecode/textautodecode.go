@@ -7,7 +7,8 @@
 //
 // 2025-06-23	PV		First version
 // 2025-06-28	Gemini	Some updates, but Gemini totally missed the interest of a partial initial read on code performance
-// 2025-07-023	PV		Moved tests to the main project itself; Added prefix TFE_ to TextFileEncoding constants
+// 2025-07-02	PV		Moved tests to the main project itself; Added prefix TFE_ to TextFileEncoding constants
+// 2025-07-05	PV		check_utf8 but (keep last char ONLY if buffer_1000 is full)
 
 package TextAutoDecode
 
@@ -77,7 +78,7 @@ func (enc TextFileEncoding) String() string {
 	case TFE_UTF16BEBOM:
 		return "UTF16BEBOM"
 	default:
-		return "??"
+		return "TFE??"
 	}
 }
 
@@ -371,12 +372,13 @@ func check_utf8(buffer_1000 []byte, n int) (string, bool) {
 			// Sorry, that's not valid UTF-8...
 			return "", false
 		}
+
+		// If last character is <128, it's not truncated and can be kept
+		if buffer_1000[nsafe] < 128 {
+			nsafe++
+		}
 	}
 
-	// If last character is <128, it's not truncated and can be kept
-	if buffer_1000[nsafe] < 128 {
-		nsafe++
-	}
 	buffer_safe := buffer_1000[:nsafe]
 
 	// Use utf8.Valid to check if the byte slice is valid UTF-8

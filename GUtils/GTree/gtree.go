@@ -131,7 +131,7 @@ type DirEntryType int
 
 const (
 	DET_Dir DirEntryType = iota
-	DET_SymLinkD
+	DET_SymLinkDcujurs
 	DET_Junction
 )
 
