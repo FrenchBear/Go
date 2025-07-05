@@ -1,12 +1,19 @@
+// gtt options.go
+// Parse and validate command line options, returning a clean Options struct
+//
+// 2027-07-05	PV 		First version, translated from Rust by Gemini
+
 package main
 
 import (
 	"flag"
 	"fmt"
+	"os"
 	"strings"
 
-	"github.com/PieVio/MyMarkup"
 	"github.com/PieVio/MyGlob"
+	"github.com/PieVio/MyMarkup"
+	"github.com/PieVio/TextAutoDecode"
 )
 
 type Options struct {
@@ -18,21 +25,36 @@ type Options struct {
 
 func header() {
 	fmt.Printf("%s %s\n", APP_NAME, APP_VERSION)
-	fmt.Println("Text type information in Rust")
+	fmt.Println("Text type information in Go")
 }
 
 func usage() {
 	header()
 	fmt.Println()
-	text := "⌊Usage⌋: {APP_NAME} ¬[⦃?⦄|⦃-?⦄|⦃-h⦄|⦃??⦄] [⦃-a+⦄|⦃-a-⦄] [⦃-w⦄] [⦃-v⦄] [⟨source⟩...]\n\n⌊Options⌋:\n⦃?⦄|⦃-?⦄|⦃-h⦄  ¬Show this message\n⦃??⦄       ¬Show advanced usage notes\n⦃-a+⦄|⦃-a-⦄  ¬Enable (default) or disable glob autorecurse mode (see extended usage)\n⦃-w⦄       ¬Only show warnings\n⦃-v⦄       ¬Verbose output\n⟨source⟩   ¬File or directory to search, glob syntax supported. Without source, search stdin."
+	text := `⌊Usage⌋: {APP_NAME} ¬[⦃?⦄|⦃-?⦄|⦃-h⦄|⦃??⦄|⦃-??⦄] [⦃-a+⦄|⦃-a-⦄] [⦃-w⦄] [⦃-v⦄] [⟨source⟩...]
+
+⌊Options⌋:
+⦃?⦄|⦃-?⦄|⦃-h⦄  ¬Show this message
+⦃??⦄|⦃-??⦄   ¬Show advanced usage notes
+⦃-a+⦄|⦃-a-⦄  ¬Enable (default) or disable glob autorecurse mode (see extended usage)
+⦃-w⦄       ¬Only show warnings
+⦃-v⦄       ¬Verbose output
+⟨source⟩   ¬File or directory to search, glob syntax supported (see extended usage). Without source, search stdin.
+`
 
 	MyMarkup.RenderMarkup(strings.ReplaceAll(text, "{APP_NAME}", APP_NAME))
 }
 
 func extendedUsage() {
 	header()
-	text := "Copyright ©2025 Pierre Violent\n\n⟪⌊Advanced usage notes⌋⟫\n\nCounts include with and without BOM variants.\n8-bit text files are likely Windows 1252/Latin-1/ANSI or OEM 850/OEM 437, there is no detailed analysis.\n\n⌊EOL styles:⌋\n- ¬⟪Windows⟫: ⟦\\r\\n⟧\n- ¬⟪Unix⟫: ⟦\\n⟧\n- ¬⟪Mac⟫: ⟦\\r⟧\n\n⌊Warnings report:⌋\n- ¬Empty files\n- ¬Source text files (based on extension) that should contain text, but with unrecognized content\n- ¬UTF-8 files with BOM\n- ¬UTF-16 files without BOM\n- ¬Different encodings for a given file type (extension) in a directory\n- ¬Mixed EOL styles in a file\n- ¬Different EOL styles for a given file type (extension) in a directory"
-
+	fmt.Println("Copyright ©2025 Pierre Violent")
+	fmt.Println()
+	fmt.Println("MyGlob:", MyGlob.Version())
+	fmt.Println("TextAutoDecode:", TextAutoDecode.Version())
+	fmt.Println("MyMarkup:", MyMarkup.Version())
+	fmt.Println()
+	
+	text := "⟪⌊Advanced usage notes⌋⟫\n\nCounts include with and without BOM variants.\n8-bit text files are likely Windows 1252/Latin-1/ANSI or OEM 850/OEM 437, there is no detailed analysis.\n\n⌊EOL styles:⌋\n- ¬⟪Windows⟫: ⟦\\r\\n⟧\n- ¬⟪Unix⟫: ⟦\\n⟧\n- ¬⟪Mac⟫: ⟦\\r⟧\n\n⌊Warnings report:⌋\n- ¬Empty files\n- ¬Source text files (based on extension) that should contain text, but with unrecognized content\n- ¬UTF-8 files with BOM\n- ¬UTF-16 files without BOM\n- ¬Different encodings for a given file type (extension) in a directory\n- ¬Mixed EOL styles in a file\n- ¬Different EOL styles for a given file type (extension) in a directory"
 	MyMarkup.RenderMarkup(strings.ReplaceAll(text, "{APP_NAME}", APP_NAME))
 	MyMarkup.RenderMarkup(MyGlob.GlobSyntax())
 }
@@ -55,14 +77,14 @@ func NewOptions() (*Options, error) {
 
 	flag.Parse()
 
-	if *showHelp || *showHelp2 {
+	if *showHelp || *showHelp2 || flag.NArg() > 0 && (flag.Args()[0] == "?" || flag.Args()[0] == "help") {
 		usage()
-		return nil, fmt.Errorf("")
+		os.Exit(0)
 	}
 
-	if *showExtendedHelp {
+	if *showExtendedHelp || flag.NArg() > 0 && flag.Args()[0] == "??" {
 		extendedUsage()
-		return nil, fmt.Errorf("")
+		os.Exit(0)
 	}
 
 	switch *autorecurseStr {

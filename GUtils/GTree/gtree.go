@@ -39,14 +39,22 @@ var maxdepth int
 const APP_NAME string = "gtree"
 const APP_VERSION string = "1.3.0"
 
+func header() {
+	fmt.Printf("%s %s\n", APP_NAME, APP_VERSION)
+	fmt.Println("Visual filesystem tree in Go")
+}
+
+
 // usage overrides default flag version
 func usage() {
-	fmt.Printf("%s %s\nVisual directory structure in Go\n\n", APP_NAME, APP_VERSION)
-
-	text := `⌊Usage⌋: {APP_NAME} ¬[⦃?⦄|⦃-?⦄|⦃-h⦄] [-⦃a⦄|-⦃A⦄] [-⦃s⦄ ⦃0⦄|⦃1⦄|⦃2⦄] [⦃-d⦄ ⟨max_depth⟩] [-⦃v⦄] [⟨dir⟩]
+	header()
+	fmt.Println()
+	
+	text := `⌊Usage⌋: {APP_NAME} ¬[⦃?⦄|⦃-?⦄|⦃-h⦄|⦃??⦄|⦃-??⦄] [-⦃a⦄|-⦃A⦄] [-⦃s⦄ ⦃0⦄|⦃1⦄|⦃2⦄] [⦃-d⦄ ⟨max_depth⟩] [-⦃v⦄] [⟨dir⟩]
 
 ⌊Options⌋:
 ⦃?⦄|⦃-?⦄|⦃-h⦄      ¬Show this message
+⦃??⦄|⦃-??⦄       ¬Show advanced usage notes
 ⦃-a⦄           ¬Show hidden directories and directories starting with a dot
 ⦃-A⦄           ¬Show system+hidden directories and directories starting with a dollar sign
 ⦃-s⦄ ⦃0⦄|⦃1⦄|⦃2⦄     ¬Sort method: 0=Default, 1=Windows File Explorer (Windows only), 2=Case fold
@@ -55,6 +63,30 @@ func usage() {
 ⟨dir⟩          ¬Starting directory`
 
 	MyMarkup.RenderMarkup(strings.Replace(text, "{APP_NAME}", APP_NAME, -1))
+}
+
+func extendedUsage() {
+	header()
+	fmt.Println("Copyright ©2025 Pierre Violent")
+	fmt.Println()
+	fmt.Println("MyMarkup:", MyMarkup.Version())
+	fmt.Println()
+	
+	text := `⟪⌊Advanced usage notes⌋⟫
+	
+By default, hidden folders are not shown.
+Option ⦃-a⦄ shows hidden folders, that is, folders with file attribute H (Windows, Hidden) such as ⟦C:\ProgramData⟧ or name starting with a . such as ⟦.git⟧
+Option ⦃-A⦄ (WIndows only) shows system hidden folders, folders with file attribute H and S (Windows, Hidden+System) such as ⟦C:\Recovery⟧ or hidden folders having a name starting with a $ such as ⟦C:\$SysReset⟧
+
+On Windows, folders are sorted by default using File Explorer sorting rules, use option ⦃-s 2⦄ to sort folders using case folding. On Linux, folders are always sorted using case folding.
+
+When recurstion depth is limited using option ⦃-d⦄, "..." at the end of the folder means that there are unexplored subfolders.
+
+Regardless of recursion depth limitation, "... ?" at the end of a folder means that folder content access is denied, so it's unknown if there are subfolders or not.
+
+Option ⦃-v⦄ show small statistics at the end of tree.
+`
+	MyMarkup.RenderMarkup(strings.ReplaceAll(text, "{APP_NAME}", APP_NAME))
 }
 
 type DataBag = struct {
@@ -71,6 +103,7 @@ type DataBag = struct {
 func main() {
 	flag.BoolVar(&h1, "h", false, "Shows this message")
 	flag.BoolVar(&h2, "?", false, "Shows this message")
+	showExtendedHelp := flag.Bool("??", false, "Show advanced usage notes")
 	flag.BoolVar(&verbose, "v", false, "Verbose output")
 	flag.BoolVar(&show_hidden, "a", false, "Show all (hidden) directories")
 	flag.BoolVar(&show_hidden_and_system, "A", false, "Show all (hidden and hidden+system) directories")
@@ -85,6 +118,11 @@ func main() {
 	// First process help
 	if h1 || h2 || flag.NArg() > 0 && (flag.Args()[0] == "?" || flag.Args()[0] == "help") {
 		flag.Usage()
+		os.Exit(0)
+	}
+
+	if *showExtendedHelp || flag.NArg() > 0 && flag.Args()[0] == "??" {
+		extendedUsage()
 		os.Exit(0)
 	}
 
@@ -131,7 +169,7 @@ type DirEntryType int
 
 const (
 	DET_Dir DirEntryType = iota
-	DET_SymLinkDcujurs
+	DET_SymLinkD
 	DET_Junction
 )
 

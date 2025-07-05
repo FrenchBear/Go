@@ -1,7 +1,7 @@
 make:	gtree
 
-gtree:	gtree.go osspecific_linux.go
-		go build gtree.go osspecific_linux.go
+gtree:	gtree.go reparse.go osspecific_linux.go osspecific_windows.go
+		go build $^
 
 clean:
 		rm -f gtree

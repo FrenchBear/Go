@@ -47,8 +47,8 @@ import (
 )
 
 const (
-	APP_NAME    = "rtt"
-	APP_VERSION = "1.0.1"
+	APP_NAME    = "gtt"
+	APP_VERSION = "1.0.2"
 )
 
 // These extensions should indicate a text content
