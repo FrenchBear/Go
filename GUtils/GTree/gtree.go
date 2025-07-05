@@ -69,14 +69,14 @@ func extendedUsage() {
 	header()
 	fmt.Println("Copyright ©2025 Pierre Violent")
 	fmt.Println()
+	MyMarkup.RenderMarkup("⌊Dependencies⌋")
 	fmt.Println("MyMarkup:", MyMarkup.Version())
 	fmt.Println()
 	
 	text := `⟪⌊Advanced usage notes⌋⟫
-	
 By default, hidden folders are not shown.
-Option ⦃-a⦄ shows hidden folders, that is, folders with file attribute H (Windows, Hidden) such as ⟦C:\ProgramData⟧ or name starting with a . such as ⟦.git⟧
-Option ⦃-A⦄ (WIndows only) shows system hidden folders, folders with file attribute H and S (Windows, Hidden+System) such as ⟦C:\Recovery⟧ or hidden folders having a name starting with a $ such as ⟦C:\$SysReset⟧
+Option ⦃-a⦄ shows hidden folders, that is, folders with file attribute H (Windows, Hidden) such as ⟦C:\ProgramData⟧ or name starting with a . such as ⟦.git⟧.
+Option ⦃-A⦄ (WIndows only) shows system hidden folders, folders with file attribute H and S (Windows, Hidden+System) such as ⟦C:\Recovery⟧ or hidden folders having a name starting with a $ such as ⟦C:\$SysReset⟧.
 
 On Windows, folders are sorted by default using File Explorer sorting rules, use option ⦃-s 2⦄ to sort folders using case folding. On Linux, folders are always sorted using case folding.
 
