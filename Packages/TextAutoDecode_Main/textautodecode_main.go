@@ -17,7 +17,7 @@ import (
 func main() {
 	fmt.Printf("TextAutoDecode lib version: %s\n\n", TextAutoDecode.Version())
 
-	tadRes, err := TextAutoDecode.ReadTextFile(`C:\Development\TestFiles\Text\rtt-test-3367744906`)
+	tadRes, err := TextAutoDecode.ReadTextFile(`C:\Development\TestFiles\Text\Hello.txt`)
 	fmt.Println("tadRes:", tadRes)
 	fmt.Println("err: ", err)
 }

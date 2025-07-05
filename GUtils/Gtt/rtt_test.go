@@ -74,8 +74,8 @@ func TestAscii(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to create temp file: %v", err)
 	}
-	//defer os.Remove(tempFile.Name())
-	//defer tempFile.Close()
+	defer os.Remove(tempFile.Name())
+	defer tempFile.Close()
 
 	_, err = tempFile.Write([]byte{'H', 'e', 'l', 'l', 'o', '\r', '\n'})
 	if err != nil {
