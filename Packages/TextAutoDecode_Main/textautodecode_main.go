@@ -17,7 +17,7 @@ import (
 func main() {
 	fmt.Printf("TextAutoDecode lib version: %s\n\n", TextAutoDecode.Version())
 
-	tadRes, err := TextAutoDecode.ReadTextFile(`C:\Development\TestFiles\Text\Hello.txt`)
+	tadRes, err := TextAutoDecode.ReadTextFile(`C:\DocumentsOD\Doc tech\Unicode\Marque d'ordre des octets - Wikipédia.website`)
 	fmt.Println("tadRes:", tadRes)
 	fmt.Println("err: ", err)
 }

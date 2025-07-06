@@ -47,8 +47,8 @@ import (
 )
 
 const (
-	APP_NAME    = "gtt"
-	APP_VERSION = "1.0.2"
+	APP_NAME        = "gtt"
+	APP_VERSION     = "1.0.2"
 	APP_DESCRIPTION = "Text type information in Go"
 )
 
@@ -150,6 +150,7 @@ func main() {
 			fk = append(fk, k)
 		}
 		sort.Strings(fk)
+		red := color.New(color.Bold, color.FgRed).PrintfFunc()
 
 		for _, f := range fk {
 			var ek []string
@@ -170,7 +171,7 @@ func main() {
 					fmt.Printf("%s, ext .%s: ", f, e)
 					filePrinted = true
 
-					color.Red("Mixed text file contents")
+					red("Mixed text file contents")
 				}
 
 				eol := b.Counters[f][e].EolStyles
@@ -187,7 +188,7 @@ func main() {
 							filePrinted = true
 							fmt.Printf("%s, ext .%s: ", f, e)
 						}
-						color.Red("Mixed EOF styles")
+						red("Mixed EOF styles")
 					}
 				}
 
@@ -277,12 +278,13 @@ func printEolStylesCounts(e EOLStyleCounts) {
 }
 
 func printResult(msg string, options *Options) {
-	if !options.ShowOnlyWarnings || strings.Contains(msg, "«") {
+	if msg != "" && (!options.ShowOnlyWarnings || strings.Contains(msg, "«")) {
 		printResultCore(msg)
 	}
 }
 
 func printResultCore(msg string) {
+	red := color.New(color.Bold, color.FgRed).PrintfFunc()
 	p0 := 0
 	for {
 		p1 := strings.Index(msg[p0:], "«")
@@ -303,23 +305,18 @@ func printResultCore(msg string) {
 		}
 		p2 += p1 + 1
 
-		color.Red(msg[p1+1 : p2])
-		p0 = p2 + 1
+		red(msg[p1+len("«") : p2])
+		p0 = p2 + len("»")
 	}
 }
 
 func processFile(b *DataBag, pathForRead string, pathForName string) string {
-	res := ""
 	tadRes, err := TextAutoDecode.ReadTextFile(pathForRead)
-
-	fmt.Println(pathForName)
-	fmt.Println(tadRes)
-	fmt.Println(err)
 
 	b.FilesTypes.Total++
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "*** Error reading file %s: %v\n", pathForName, err)
-		return res
+		return ""
 	}
 
 	ext := strings.ToLower(filepath.Ext(pathForName))
@@ -355,22 +352,26 @@ func processFile(b *DataBag, pathForRead string, pathForName string) string {
 		if isTextExt {
 			return fmt.Sprintf("%s: «Non-text file detected, but extension %s is usually a text file»", pathForName, ext)
 		}
-		return res
+		return ""
+
 	case TextAutoDecode.TFE_Empty:
 		b.FilesTypes.Empty++
 		// Don't collect infos per directory+ext for empty files
 		// No need to continue if it's empty
 		return fmt.Sprintf("%s: «Empty file»", pathForName)
+
 	case TextAutoDecode.TFE_ASCII:
 		b.FilesTypes.Ascii++
 		fc.FilesTypes.Ascii++
 		enc = "ASCII"
 		war = ""
+
 	case TextAutoDecode.TFE_EightBit:
 		b.FilesTypes.EightBit++
 		fc.FilesTypes.EightBit++
 		enc = "8-Bit text"
 		war = ""
+
 	case TextAutoDecode.TFE_UTF8, TextAutoDecode.TFE_UTF8BOM:
 		b.FilesTypes.Utf8++
 		fc.FilesTypes.Utf8++
@@ -380,6 +381,7 @@ func processFile(b *DataBag, pathForRead string, pathForName string) string {
 		} else {
 			war = ""
 		}
+
 	case TextAutoDecode.TFE_UTF16LE, TextAutoDecode.TFE_UTF16BE, TextAutoDecode.TFE_UTF16LEBOM, TextAutoDecode.TFE_UTF16BEBOM:
 		b.FilesTypes.Utf16++
 		fc.FilesTypes.Utf16++
@@ -409,7 +411,7 @@ func processFile(b *DataBag, pathForRead string, pathForName string) string {
 	b.EolStyles.Mixed += eol.Mixed
 	b.EolStyles.Total += eol.Total
 
-	res = fmt.Sprintf("%s: %s", pathForName, enc)
+	res := fmt.Sprintf("%s: %s", pathForName, enc)
 	if war != "" {
 		res += fmt.Sprintf(" «%s»", war)
 	}

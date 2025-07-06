@@ -8,7 +8,8 @@
 // 2025-06-23	PV		First version
 // 2025-06-28	Gemini	Some updates, but Gemini totally missed the interest of a partial initial read on code performance
 // 2025-07-02	PV		Moved tests to the main project itself; Added prefix TFE_ to TextFileEncoding constants
-// 2025-07-05	PV		check_utf8 but (keep last char ONLY if buffer_1000 is full)
+// 2025-07-05	PV		1.0.1 check_utf8 but (keep last char ONLY if buffer_1000 is full)
+// 2025-07-06	PV		1.0.2 fixed check_eightbit that didn't truncate buffer_1000 to the first n characters
 
 package TextAutoDecode
 
@@ -21,7 +22,7 @@ import (
 	"golang.org/x/text/encoding/charmap"
 )
 
-const LIB_VERSION = "1.0.1"
+const LIB_VERSION = "1.0.2"
 
 // Returns library current version
 func Version() string {
@@ -224,7 +225,7 @@ func ReadTextFile(file string) (TextAutoDecode, error) {
 	}
 
 	// 8-bit?
-	s, ok = check_eightbit(&buffer_1000, n)
+	s, ok = check_eightbit(buffer_1000, n)
 	if ok {
 		if n < 1000 {
 			return TextAutoDecode{Text: s, Encoding: TFE_EightBit}, nil
@@ -238,7 +239,6 @@ func ReadTextFile(file string) (TextAutoDecode, error) {
 	}
 
 	// None of the encodings worked without error
-
 	return TextAutoDecode{Text: "??", Encoding: TFE_NotText}, nil
 }
 
@@ -497,8 +497,9 @@ func utf16_decode(buffer []byte, encoding TextFileEncoding) (string, bool) {
 	return string(buf), true
 }
 
-func check_eightbit(buffer_1000 *[]byte, _ int) (string, bool) {
-	s, ok := eightbit_decode(*buffer_1000)
+func check_eightbit(buffer_1000 []byte, n int) (string, bool) {
+	buffer := buffer_1000[:n]
+	s, ok := eightbit_decode(buffer)
 	if ok && is_75percent_ascii(&s) {
 		return s, ok
 	}

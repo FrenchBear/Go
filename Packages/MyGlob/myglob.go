@@ -14,7 +14,7 @@ import (
 )
 
 const (
-	libVersion = "1.0.0"
+	LIB_VERSION = "1.0.0"
 )
 
 // Segment is an interface for a segment of a glob pattern.
@@ -67,7 +67,7 @@ func (e MyGlobError) Error() string {
 
 // Version returns the library version.
 func Version() string {
-	return libVersion
+	return LIB_VERSION
 }
 
 // GlobSyntax returns the glob pattern syntax documentation.
