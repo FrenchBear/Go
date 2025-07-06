@@ -49,6 +49,7 @@ import (
 const (
 	APP_NAME    = "gtt"
 	APP_VERSION = "1.0.2"
+	APP_DESCRIPTION = "Text type information in Go"
 )
 
 // These extensions should indicate a text content

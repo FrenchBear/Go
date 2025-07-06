@@ -38,12 +38,12 @@ var maxdepth int
 // Global constants
 const APP_NAME string = "gtree"
 const APP_VERSION string = "1.3.0"
+const APP_DESCRIPTION = "Visual directory structure in Go"
 
 func header() {
 	fmt.Printf("%s %s\n", APP_NAME, APP_VERSION)
-	fmt.Println("Visual filesystem tree in Go")
+	fmt.Println(APP_DESCRIPTION)
 }
-
 
 // usage overrides default flag version
 func usage() {
@@ -69,20 +69,21 @@ func extendedUsage() {
 	header()
 	fmt.Println("Copyright ©2025 Pierre Violent")
 	fmt.Println()
-	MyMarkup.RenderMarkup("⌊Dependencies⌋")
+	MyMarkup.RenderMarkup("⌊Dependencies⌋:")
 	fmt.Println("MyMarkup:", MyMarkup.Version())
 	fmt.Println()
 	
 	text := `⟪⌊Advanced usage notes⌋⟫
+	
 By default, hidden folders are not shown.
 Option ⦃-a⦄ shows hidden folders, that is, folders with file attribute H (Windows, Hidden) such as ⟦C:\ProgramData⟧ or name starting with a . such as ⟦.git⟧.
-Option ⦃-A⦄ (WIndows only) shows system hidden folders, folders with file attribute H and S (Windows, Hidden+System) such as ⟦C:\Recovery⟧ or hidden folders having a name starting with a $ such as ⟦C:\$SysReset⟧.
+Option ⦃-A⦄ (Windows only) shows system hidden folders, folders with file attribute H and S (Windows, Hidden+System) such as ⟦C:\Recovery⟧ or hidden folders having a name starting with a $ such as ⟦C:\$SysReset⟧.
 
 On Windows, folders are sorted by default using File Explorer sorting rules, use option ⦃-s 2⦄ to sort folders using case folding. On Linux, folders are always sorted using case folding.
 
-When recurstion depth is limited using option ⦃-d⦄, "..." at the end of the folder means that there are unexplored subfolders.
+When recursion depth is limited using option ⦃-d⦄, "..." at the end of the folder means that there are unexplored subfolders.
 
-Regardless of recursion depth limitation, "... ?" at the end of a folder means that folder content access is denied, so it's unknown if there are subfolders or not.
+Regardless of recursion depth limitation, "... ?" at the end of a folder means that folder content access is denied, so it is unknown if there are subfolders or not.
 
 Option ⦃-v⦄ show small statistics at the end of tree.
 `

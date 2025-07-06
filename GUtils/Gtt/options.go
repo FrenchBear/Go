@@ -25,7 +25,7 @@ type Options struct {
 
 func header() {
 	fmt.Printf("%s %s\n", APP_NAME, APP_VERSION)
-	fmt.Println("Text type information in Go")
+	fmt.Println(APP_DESCRIPTION)
 }
 
 func usage() {
@@ -49,13 +49,33 @@ func extendedUsage() {
 	header()
 	fmt.Println("Copyright ©2025 Pierre Violent")
 	fmt.Println()
+	MyMarkup.RenderMarkup("⌊Dependencies⌋:")
 	fmt.Println("MyGlob:", MyGlob.Version())
 	fmt.Println("TextAutoDecode:", TextAutoDecode.Version())
 	fmt.Println("MyMarkup:", MyMarkup.Version())
 	fmt.Println()
 	
-	text := "⟪⌊Advanced usage notes⌋⟫\n\nCounts include with and without BOM variants.\n8-bit text files are likely Windows 1252/Latin-1/ANSI or OEM 850/OEM 437, there is no detailed analysis.\n\n⌊EOL styles:⌋\n- ¬⟪Windows⟫: ⟦\\r\\n⟧\n- ¬⟪Unix⟫: ⟦\\n⟧\n- ¬⟪Mac⟫: ⟦\\r⟧\n\n⌊Warnings report:⌋\n- ¬Empty files\n- ¬Source text files (based on extension) that should contain text, but with unrecognized content\n- ¬UTF-8 files with BOM\n- ¬UTF-16 files without BOM\n- ¬Different encodings for a given file type (extension) in a directory\n- ¬Mixed EOL styles in a file\n- ¬Different EOL styles for a given file type (extension) in a directory"
+	text := `⟪⌊Advanced usage notes⌋⟫
+
+Counts include with and without BOM variants.
+8-bit text files are likely Windows 1252/Latin-1/ANSI or OEM 850/OEM 437, there is no detailed analysis.
+
+⌊EOL styles⌋:
+- ¬⟪Windows⟫: ⟦\r\n⟧
+- ¬⟪Unix⟫: ⟦\n⟧
+- ¬⟪Mac⟫: ⟦\r⟧
+ 
+⌊Warnings report⌋:
+- ¬Empty files
+- ¬Source text files (based on extension) that should contain text, but with unrecognized content
+- ¬UTF-8 files with BOM
+- ¬UTF-16 files without BOM
+- ¬Different encodings for a given file type (extension) in a directory
+- ¬Mixed EOL styles in a file
+- ¬Different EOL styles for a given file type (extension) in a directory`
+
 	MyMarkup.RenderMarkup(strings.ReplaceAll(text, "{APP_NAME}", APP_NAME))
+	fmt.Println()
 	MyMarkup.RenderMarkup(MyGlob.GlobSyntax())
 }
 
