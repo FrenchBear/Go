@@ -1,5 +1,5 @@
-// g38_concurrency.go
-// Learning go, Concurrency
+// g38_goroutines.go
+// Learning go, Concurrency, Goroutines
 //
 // 2025-07-06	PV		First version
 
@@ -13,7 +13,7 @@ import (
 )
 
 func main() {
-	fmt.Println("Go Concurrency")
+	fmt.Println("Go Concurrency, Goroutines")
 
 	fmt.Print("You are using ", runtime.Compiler, " ")
 	fmt.Println("on a", runtime.GOARCH, "machine")
