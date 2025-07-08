@@ -18,6 +18,7 @@ func main() {
 	example2()
 	example3()
 	example4()
+	example5()
 }
 
 func example1() {
@@ -189,3 +190,31 @@ func printer(ch chan<- bool) {
 // 	fmt.Println("Read (f2):", x)
 // 	output <- x
 // }
+
+// Select can be used when queueing values in a channel that can block if full
+// and when dequeueing data when channel can be empty
+func example5() {
+	numbers := make(chan int, 5)
+
+	counter := 10
+	for i := 0; i < counter; i++ {
+		select {
+		case numbers <- i:
+			fmt.Println("Queued", i)
+		default:
+			fmt.Println("No space for", i)
+		}
+
+	}
+	fmt.Println()
+	for exhausted := false; !exhausted; {
+		select {
+		case num := <-numbers:
+			fmt.Println("Processing", num)
+		default:
+			fmt.Println("Nothing left to read!")
+			exhausted = true
+		}
+	}
+	fmt.Println()
+}

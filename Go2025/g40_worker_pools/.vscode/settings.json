@@ -19,14 +19,5 @@
         "statusBarItem.remoteBackground": "#eb5424",
         "statusBarItem.remoteForeground": "#e7e7e7"
     },
-    "peacock.color": "#eb5424",
-    "spellright.language": [
-        "en"
-    ],
-    "spellright.documentTypes": [
-        "code",
-        "markdown",
-        "latex",
-        "plaintext"
-    ]
+    "peacock.color": "#eb5424"
 }

@@ -2,6 +2,7 @@
 // Translation of Rtt utility
 //
 // 2027-07-05 	PV 		Initial translation by Gemini
+// 2027-07-07 	PV 		1.03 Compact options -a+ and -a-
 
 /*
 I need to translate a simple command line Rust program into its equivalent in Go.
@@ -48,7 +49,7 @@ import (
 
 const (
 	APP_NAME        = "gtt"
-	APP_VERSION     = "1.0.2"
+	APP_VERSION     = "1.0.3"
 	APP_DESCRIPTION = "Text type information in Go"
 )
 

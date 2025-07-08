@@ -2,6 +2,7 @@
 // Parse and validate command line options, returning a clean Options struct
 //
 // 2027-07-05	PV 		First version, translated from Rust by Gemini
+// 2027-07-07 	PV 		Compact options -a+ and -a-
 
 package main
 
@@ -92,6 +93,8 @@ func NewOptions() (*Options, error) {
 	showHelp2 := flag.Bool("?", false, "Show this message")
 	showExtendedHelp := flag.Bool("??", false, "Show advanced usage notes")
 	autorecurseStr := flag.String("a", "+", "Enable (+) or disable (-) glob autorecurse mode")
+	autorecursePlus := flag.Bool("a+", false, "Synonym for -a +")
+	autorecurseMinus := flag.Bool("a-", false, "Synonym for -a -")
 	flag.BoolVar(&options.ShowOnlyWarnings, "w", false, "Only show warnings")
 	flag.BoolVar(&options.Verbose, "v", false, "Verbose output")
 
@@ -107,6 +110,7 @@ func NewOptions() (*Options, error) {
 		os.Exit(0)
 	}
 
+	// Separated option/argument: -a + and -a -
 	switch *autorecurseStr {
 	case "+":
 		options.Autorecurse = true
@@ -115,6 +119,15 @@ func NewOptions() (*Options, error) {
 	default:
 		return nil, fmt.Errorf("Only -a+ and -a- (enable/disable autorecurse) are supported")
 	}
+
+	// Joined options, -a+ and -a-
+	if *autorecursePlus {
+		options.Autorecurse = true
+	}
+	if *autorecurseMinus {
+		options.Autorecurse = false
+	}
+
 
 	options.Sources = flag.Args()
 
