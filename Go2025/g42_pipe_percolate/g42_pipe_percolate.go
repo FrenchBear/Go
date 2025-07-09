@@ -13,8 +13,8 @@ import (
 
 type Cell struct {
 	IsFilled bool
-	North    chan bool
-	West     chan bool
+	North    <-chan bool
+	West     <-chan bool
 	South    chan bool
 	East     chan bool
 }
@@ -33,14 +33,14 @@ func main() {
 	for r := 0; r < SIZE; r++ {
 		grid[r] = make([]Cell, SIZE)
 		for c := 0; c < SIZE; c++ {
-			var n chan bool
+			var n <- chan bool
 			if r == 0 {
 				n = source
 			} else {
 				n = grid[r-1][c].South
 			}
 
-			var w chan bool
+			var w <- chan bool
 			if c == 0 {
 				w = nil
 			} else {
@@ -97,7 +97,7 @@ func main() {
 	// Setup percolation grid
 	for r := 0; r < SIZE; r++ {
 		for c := 0; c < SIZE; c++ {
-			go percolate(r, c, grid[r][c])
+			go percolate(grid[r][c])
 		}
 	}
 
@@ -125,19 +125,19 @@ func main() {
 	}
 }
 
-func percolate(_r, _c int, cell Cell) {
+func percolate(cell Cell) {
 	n := false
 	if cell.North != nil {
 		n = <-cell.North
 	}
-	e := false
-	if cell.East != nil {
-		e = <-cell.East
+	w := false
+	if cell.West != nil {
+		w = <-cell.West
 	}
 
 	res := false
 	if !cell.IsFilled {
-		res = n || e
+		res = n || w
 	}
 
 	// if !cell.IsFilled {
@@ -147,9 +147,9 @@ func percolate(_r, _c int, cell Cell) {
 	// 	fmt.Printf("percolate[%v,%v], filled cell -> %v\n", r, c, res)
 	// }
 
-	if cell.West != nil {
-		cell.West <- res
-		close(cell.West)
+	if cell.East != nil {
+		cell.East <- res
+		close(cell.East)
 	}
 	if cell.South != nil {
 		cell.South <- res
