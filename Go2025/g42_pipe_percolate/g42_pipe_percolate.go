@@ -7,26 +7,32 @@ package main
 
 import (
 	"fmt"
+	"math/rand"
+	"time"
 )
 
 type Cell struct {
-	North chan bool
-	West  chan bool
-	South chan bool
-	East  chan bool
+	IsFilled bool
+	North    chan bool
+	West     chan bool
+	South    chan bool
+	East     chan bool
 }
 
 func main() {
 	fmt.Println("Go Concurrency, Percolation")
+	fmt.Println()
 
-	const SIZE = 4
+	const SIZE = 10
+	const THRESHOLD = 0.4
 	source := make(chan bool, SIZE)
+	rnd := rand.New(rand.NewSource(time.Now().UnixNano()))
 
+	// Create grid of channels
 	grid := make([][]Cell, SIZE)
 	for r := 0; r < SIZE; r++ {
 		grid[r] = make([]Cell, SIZE)
 		for c := 0; c < SIZE; c++ {
-
 			var n chan bool
 			if r == 0 {
 				n = source
@@ -60,6 +66,34 @@ func main() {
 		}
 	}
 
+	// Fill some cells according to density (global fill density algorithm)
+	nf := 0
+	for {
+		r := rnd.Intn(SIZE)
+		c := rnd.Intn(SIZE)
+		if !grid[r][c].IsFilled {
+			grid[r][c].IsFilled = true
+			nf++
+			if float64(nf)/float64(SIZE*SIZE) >= THRESHOLD {
+				break
+			}
+		}
+	}
+
+	// Print grid
+	for r := 0; r < SIZE; r++ {
+		for c := 0; c < SIZE; c++ {
+
+			if grid[r][c].IsFilled {
+				fmt.Printf("X ")
+			} else {
+				fmt.Printf(". ")
+			}
+		}
+		fmt.Println()
+	}
+	fmt.Println()
+
 	// Setup percolation grid
 	for r := 0; r < SIZE; r++ {
 		for c := 0; c < SIZE; c++ {
@@ -72,34 +106,53 @@ func main() {
 		source <- true
 	}
 
-
 	// Look at what get through
+	perco := false
 	for c := 0; c < SIZE; c++ {
 		res_c := <-grid[SIZE-1][c].South
-		fmt.Printf("%d: %v\n", c, res_c)
+		//fmt.Printf("%d: %v\n", c, res_c)
+		if res_c {
+			perco = true
+		}
+	}
+	//fmt.Println()
+
+	if perco {
+		fmt.Printf("Density %.3f, Percolation\n", THRESHOLD)
+	} else {
+		fmt.Printf("Density %.3f, No percolation\n", THRESHOLD)
+
 	}
 }
 
-func percolate(r, c int, cell Cell) {
+func percolate(_r, _c int, cell Cell) {
 	n := false
-	if cell.North!=nil {
+	if cell.North != nil {
 		n = <-cell.North
 	}
-	e:=false
-	if cell.East!=nil {
+	e := false
+	if cell.East != nil {
 		e = <-cell.East
 	}
-	res := n || e
 
-	fmt.Printf("percolate[%v,%v] -> %v\n", r, c, res)
+	res := false
+	if !cell.IsFilled {
+		res = n || e
+	}
 
+	// if !cell.IsFilled {
+	// 	fmt.Printf("percolate[%v,%v] -> %v\n", r, c, res)
+	// } else {
+	// 	res = false
+	// 	fmt.Printf("percolate[%v,%v], filled cell -> %v\n", r, c, res)
+	// }
 
-	if cell.West!=nil {
-		cell.West<-res
+	if cell.West != nil {
+		cell.West <- res
 		close(cell.West)
 	}
-	if cell.South!=nil {
-		cell.South<-res
+	if cell.South != nil {
+		cell.South <- res
 		close(cell.South)
 	}
 }
