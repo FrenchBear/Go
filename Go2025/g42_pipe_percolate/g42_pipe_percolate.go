@@ -23,7 +23,7 @@ func main() {
 	fmt.Println("Go Concurrency, Percolation")
 	fmt.Println()
 
-	const SIZE = 10
+	const SIZE = 25
 	const THRESHOLD = 0.4
 	source := make(chan bool, SIZE)
 	rnd := rand.New(rand.NewSource(time.Now().UnixNano()))
@@ -94,6 +94,8 @@ func main() {
 	}
 	fmt.Println()
 
+	start := time.Now()
+
 	// Setup percolation grid
 	for r := 0; r < SIZE; r++ {
 		for c := 0; c < SIZE; c++ {
@@ -117,12 +119,15 @@ func main() {
 	}
 	//fmt.Println()
 
-	if perco {
-		fmt.Printf("Density %.3f, Percolation\n", THRESHOLD)
-	} else {
-		fmt.Printf("Density %.3f, No percolation\n", THRESHOLD)
+	duration := time.Since(start)
 
+	fmt.Printf("Grid %d×%d, Density %.3f, ", SIZE, SIZE, THRESHOLD)
+	if perco {
+		fmt.Println("Percolation")
+	} else {
+		fmt.Println("No percolation")
 	}
+	fmt.Printf("Duration: %.3fs\n", float64(duration.Milliseconds())/1000.0)
 }
 
 func percolate(cell Cell) {

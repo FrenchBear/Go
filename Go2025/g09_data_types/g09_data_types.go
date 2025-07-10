@@ -135,7 +135,7 @@ func test_strings() {
 	f("Suffix: %v\n", s.HasSuffix("Mihalis", "IS"))
 
 	// splits the given string around one or more
-	// white space characters as de昀椀ned by the unicode.IsSpace() function and returns
+	// white space characters as defined by the unicode.IsSpace() function and returns
 	// a slice of substrings found in the input string
 	t := s.Fields("This is a string!")
 	f("Fields: %v\n", len(t))

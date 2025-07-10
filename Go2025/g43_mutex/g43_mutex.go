@@ -1,5 +1,5 @@
 // g43_mutex.go
-// Learning go, Concurrent programming, Mutexes and atomic
+// Learning go, Concurrent programming, Mutexes, atomic, semaphores
 //
 // 2025-07-09	PV		First version
 
@@ -10,22 +10,30 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"math/rand"
 	"sync"
 	"sync/atomic"
 	"time"
+
+	"golang.org/x/sync/semaphore"
 )
 
 func main() {
-	fmt.Printf("Go Mutexes\n\n")
+	fmt.Println("Go Mutexes, Atomic, Monitor, Semaphores")
 
-	//testMutex()
-	//textAtomic()
+	testMutex()
+	textAtomic()
 	testMonitor()
+	testSemaphore()
 }
 
+// ======================================================================================================
+
 func testMutex() {
+	fmt.Printf("\nTest Mutex\n\n")
+
 	fmt.Println("textMutex starts")
 	wg.Add(2)
 	go change()
@@ -74,6 +82,8 @@ func read() {
 	wg.Done()
 }
 
+// ======================================================================================================
+
 type atomCounter struct {
 	val int64
 }
@@ -91,6 +101,8 @@ func (c *atomCounter) value() int64 {
 }
 
 func textAtomic() {
+	fmt.Printf("\nTest Atomic\n\n")
+
 	fmt.Println("testAtomic starts")
 
 	var waitGroup sync.WaitGroup
@@ -116,9 +128,14 @@ func textAtomic() {
 	fmt.Println()
 }
 
+// ======================================================================================================
+
 // Another way to share memory is to access it through a monitor, that will only manage one request at  a time,
 // thus ensuring safe sharing. Actual data is stored in monitor(), here a single integer.
+
 func testMonitor() {
+	fmt.Printf("\nTest Monitor\n\n")
+
 	fmt.Println("testMonitor starts")
 
 	// Starts goroutine first
@@ -142,7 +159,7 @@ func testMonitor() {
 	}
 	waitGroup.Wait()
 	fmt.Println("Final value:", get())
-	
+
 	fmt.Println("testMonitor ends")
 	fmt.Println()
 }
@@ -168,4 +185,57 @@ func monitor() {
 		case readValue <- value:
 		}
 	}
+}
+
+// ======================================================================================================
+
+// Semaphores can have weights that limit the number of threads or goroutines that can have access to a resource
+// The process is supported via the Acquire() and Release() methods, which are defied as follows:
+// - func (s *Weighted) Acquire(ctx context.Context, n int64) error
+// - func (s *Weighted) Release(n int64)
+// The second parameter of Acquire() defines the weight of the semaphore
+
+func testSemaphore() {
+	fmt.Printf("\nTest Semaphore\n\n")
+
+	var Workers = 4
+	var sem = semaphore.NewWeighted(int64(Workers))
+
+	nJobs := 10
+	// Where to store the results
+	var results = make([]int, nJobs)
+
+	// Needed by Acquire()
+	ctx := context.TODO()
+	for i := range results {
+		err := sem.Acquire(ctx, 1)
+		if err != nil {
+			fmt.Println("Cannot acquire semaphore:", err)
+			break
+		}
+
+		go func(i int) {
+			defer sem.Release(1)
+			temp := worker(i)
+			results[i] = temp
+		}(i)
+	}
+
+	// This is a clever trick: we acquire all of the tokens so that the sem.Acquire() call
+	// blocks until all workers/goroutines have finished. This is similar in functionality to a
+	// Wait() call.
+	err := sem.Acquire(ctx, int64(Workers))
+	if err != nil {
+		fmt.Println(err)
+	}
+	for k, v := range results {
+		fmt.Println(k, "->", v)
+	}
+	fmt.Println()
+}
+
+func worker(n int) int {
+	square := n * n
+	time.Sleep(time.Second)
+	return square
 }
