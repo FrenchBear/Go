@@ -1,7 +1,9 @@
-// reparse.go
-// Support for NTPS reparse points, symbolic links dir and junctions
+// reparse_windows.go
+// Support for NTFS reparse points, symbolic links dir and junctions
 //
 // 2025-07-03	PV		First version, refactored gemini code
+
+//go:build windows
 
 package main
 

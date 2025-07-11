@@ -11,4 +11,4 @@ require (
 
 require golang.org/x/term v0.32.0 // indirect
 
-replace github.com/PieVio/MyMarkup => C:\Development\GitHub\Go\Packages\MyMarkup
+replace github.com/PieVio/MyMarkup => ../../Packages/MyMarkup

@@ -15,7 +15,7 @@ require (
 )
 
 replace (
-	github.com/PieVio/MyGlob => C:\Development\GitHub\Go\Packages\MyGlob
-	github.com/PieVio/MyMarkup => C:\Development\GitHub\Go\Packages\MyMarkup
-	github.com/PieVio/TextAutoDecode => C:\Development\GitHub\Go\Packages\TextAutoDecode
+	github.com/PieVio/MyGlob => ../../Packages/MyGlob
+	github.com/PieVio/MyMarkup => ../../Packages/MyMarkup
+	github.com/PieVio/TextAutoDecode => ../../Packages/TextAutoDecode
 )
