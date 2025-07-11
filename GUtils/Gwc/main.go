@@ -2,6 +2,19 @@
 // Translation of Rwc utility
 //
 // 2027-07-10 	PV 		First version
+// 2027-07-11 	PV 		1.1 Parallel version of ProcessText
+
+/* Before parallelism, on WOTAN:
+
+gwc -v "C:\Development\TestFiles\Text\Les secrets d'Hermione.txt"
+  56337 1363732  7946200  8490462  C:\Development\TestFiles\Text\Les secrets d'Hermione.txt
+1 files(s) searched in 0.071s
+
+After parallelism:
+  56337 1363732  7946200  8490462  C:\Development\TestFiles\Text\Les secrets d'Hermione.txt
+1 files(s) searched in 0.046s
+
+*/
 
 package main
 
@@ -19,7 +32,7 @@ import (
 
 const (
 	APP_NAME        = "gwc"
-	APP_VERSION     = "1.0.0"
+	APP_VERSION     = "1.1.0"
 	APP_DESCRIPTION = "Word Count utility in Go"
 )
 
@@ -142,29 +155,39 @@ func processFile(b *DataBag, path string, options *Options) {
 }
 
 func processText(b *DataBag, txt, path string, options *Options, filesize int64) {
-	lines := 0
-	words := 0
-	chars := utf8.RuneCountInString(txt)
-	bytes := int(filesize) // sizes longer than 1GB are skipped
-
-	normalized := strings.ReplaceAll(txt, "\r\n", "\n")
-	normalized = strings.ReplaceAll(normalized, "\r", "\n")
+	normalized := strings.ReplaceAll(strings.ReplaceAll(txt, "\r\n", "\n"), "\r", "\n")
 	textLines := strings.Split(normalized, "\n")
 
-	for _, textLine := range textLines {
-		lines++
-
-		splitFunc := func(r rune) bool {
-			return r == ' ' || r == '\t'
-		}
-		words += len(strings.FieldsFunc(strings.Trim(textLine, " \t"), splitFunc))
-	}
+	lines := len(textLines)
+	chars := utf8.RuneCountInString(txt)
+	bytes := int(filesize) // sizes longer than 1GB are skipped
 
 	// Special correction: If last line ends with \n, strings.Split counts an extra empty line in Go, while it's not
 	// counted in Rust version and also in Linux wc command, hence this manual correction
 	if strings.HasSuffix(normalized, "\n") {
 		lines--
 	}
+
+	// To count words, we use a goroutine to count in blocks of 6000 lines since empirically that's near the most efficient size
+	SLICESIZE := 6000
+	blocks := len(textLines)/SLICESIZE + 1
+	reschan := make(chan int, blocks)
+	sl := 0
+	for i := 0; i < len(textLines); i += SLICESIZE {
+		end := i + SLICESIZE
+		if end > len(textLines) {
+			end = len(textLines)
+		}
+		sl++
+		go count_slice_words_to_reschan(textLines[i:end], reschan)
+	}
+
+	words := 0
+	for i := 0; i < sl; i++ {
+		words += <-reschan
+	}
+	close(reschan)
+
 
 	if !options.ShowOnlyTotal {
 		printLine(lines, words, chars, bytes, path)
@@ -175,4 +198,15 @@ func processText(b *DataBag, txt, path string, options *Options, filesize int64)
 	b.words_count += words
 	b.chars_count += chars
 	b.bytes_count += bytes
+}
+
+func count_slice_words_to_reschan(lines []string, reschan chan <- int) {
+	words := 0
+	for _, line := range lines {
+		splitFunc := func(r rune) bool {
+			return r == ' ' || r == '\t'
+		}
+		words += len(strings.FieldsFunc(strings.Trim(line, " \t"), splitFunc))
+	}
+	reschan <- words
 }

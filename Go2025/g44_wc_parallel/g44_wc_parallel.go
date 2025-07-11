@@ -32,7 +32,15 @@ Blocksize  19000: li: 56337  wo: 1363732 ru: 7833526 by: 8434125, Duration: 0.01
 Blocksize  20000: li: 56337  wo: 1363732 ru: 7833526 by: 8434125, Duration: 0.011s
 Blocksize  50000: li: 56337  wo: 1363732 ru: 7833526 by: 8434125, Duration: 0.021s
 Blocksize 100000: li: 56337  wo: 1363732 ru: 7833526 by: 8434125, Duration: 0.025s
-*/
+
+
+Blocksize   6000: li: 56337  wo: 1363732 ru: 7833526 by: 8434125, Duration: 0.008s
+Linear 1          li: 56337  wo: 1363732 ru: 7833526 by: 8434125, Duration: 0.025s
+Linear 2          li: 56337  wo: 1363732 ru: 7833526 by: 8434125, Duration: 0.024s
+Linear 3          li: 53403  wo: 1345021 ru: 7700949 by: 8293444, Duration: 0.022s
+Linear 4          li: 56337  wo: 1363732 ru: 7833526 by: 8434125, Duration: 0.058s
+B6000 readall     li: 56338  wo: 1363732 ru: 7833526 by: 8434126, Duration: 0.004s
+s*/
 
 package main
 
@@ -200,18 +208,19 @@ func count_parallel_readall() WCRes {
 		return WCRes{}
 	}
 
-	reschan := make(chan WCRes, 100)
+	textLines := strings.Split(strings.ReplaceAll(strings.ReplaceAll(string(data), "\r\n", "\n"), "\r", "\n"), "\n")
 
-	lines := strings.Split(strings.ReplaceAll(strings.ReplaceAll(string(data), "\r\n", "\n"), "\r", "\n"), "\n")
 	SLICESIZE := 6000
+	blocks := len(textLines)/SLICESIZE + 1
+	reschan := make(chan WCRes, blocks)
 	sl := 0
-	for i := 0; i < len(lines); i += SLICESIZE {
+	for i := 0; i < len(textLines); i += SLICESIZE {
 		end := i + SLICESIZE
-		if end > len(lines) {
-			end = len(lines)
+		if end > len(textLines) {
+			end = len(textLines)
 		}
 		sl++
-		go count_slice_to_reschan(lines[i:end], reschan)
+		go count_slice_to_reschan(textLines[i:end], reschan)
 	}
 
 	total := WCRes{}
@@ -222,9 +231,8 @@ func count_parallel_readall() WCRes {
 		total.runes += res.runes
 		total.bytes += res.bytes
 	}
-
+	//close(reschan)
 	return total
-
 }
 
 func count_parallel(blocksize int) WCRes {
@@ -264,7 +272,7 @@ func count_parallel(blocksize int) WCRes {
 	return total
 }
 
-func count_slice_to_reschan(lines []string, reschan chan WCRes) {
+func count_slice_to_reschan(lines []string, reschan chan <- WCRes) {
 	reschan <- count_slice_core(lines)
 }
 
