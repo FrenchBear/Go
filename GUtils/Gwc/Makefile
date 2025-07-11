@@ -1,6 +1,6 @@
 make:	gwc
 
-gwc:	gwc.go options.go rtt_test.go
+gwc:	gwc.go options.go gwc_test.go
 		go build $^
 
 clean:

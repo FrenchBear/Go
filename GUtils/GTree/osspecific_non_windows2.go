@@ -1,9 +1,9 @@
-// osspecific_linux.go
-// Linux-specific code
+//go:build !windows
+
+// osspecific_non_windows.go
+// Non-windows specific code
 //
 // 2026-07-02	PV 		First version, also first example of os-specific compilation
-
-//go:build linux
 
 package main
 
@@ -29,3 +29,4 @@ func path_comparer(_sortmethod int, s1, s2 string) int {
 	str2 := folder.String(s2)
 	return strings.Compare(str1, str2)
 }
+

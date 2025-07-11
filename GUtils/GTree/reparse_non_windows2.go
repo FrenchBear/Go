@@ -1,9 +1,9 @@
+//go:build !windows
+
 // reparse_non_windows.go
 // Alternate support for reparse points, symbolic links dir and junctions on non-windows systems
 //
 // 2025-07-11	PV		First version
-
-//go:build !windows
 
 package main
 
@@ -35,3 +35,4 @@ func IsSymLinkD(path string) (bool, string, error) {
 func IsJunction(path string) (bool, string, error) {
 	return false, "", nil
 }
+

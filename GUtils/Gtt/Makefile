@@ -1,6 +1,6 @@
 make:	gtt
 
-gtt:	gtt.go options.go rtt_test.go
+gtt:	gtt.go options.go gtt_test.go
 		go build $^
 
 clean:

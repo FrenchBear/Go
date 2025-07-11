@@ -1,4 +1,4 @@
-module github.com/PieVio/gwc
+module gwc
 
 go 1.24.3
 
