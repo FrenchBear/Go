@@ -82,7 +82,7 @@ func main() {
 	// If no source has been provided, use stdin
 	if len(options.Sources) == 0 {
 		err := processStdin(options)
-		if err!=nil {
+		if err != nil {
 			fmt.Fprintf(os.Stderr, "%s: Error reading from stdin: %v\n", APP_NAME, err)
 		}
 	}
@@ -168,26 +168,32 @@ func processText(b *DataBag, txt, path string, options *Options, filesize int64)
 		lines--
 	}
 
-	// To count words, we use a goroutine to count in blocks of 6000 lines since empirically that's near the most efficient size
+	// To count words, if we have more than 6000 lines, then we use a goroutine to count in blocks of 6000 lines since
+	// empirically that's near the most efficient size
 	SLICESIZE := 6000
-	blocks := len(textLines)/SLICESIZE + 1
-	reschan := make(chan int, blocks)
-	sl := 0
-	for i := 0; i < len(textLines); i += SLICESIZE {
-		end := i + SLICESIZE
-		if end > len(textLines) {
-			end = len(textLines)
-		}
-		sl++
-		go count_slice_words_to_reschan(textLines[i:end], reschan)
-	}
 
 	words := 0
-	for i := 0; i < sl; i++ {
-		words += <-reschan
-	}
-	close(reschan)
+	if lines <= SLICESIZE {
+		words = count_slice_words(textLines)
+	} else {
+		blocks := len(textLines)/SLICESIZE + 1
+		reschan := make(chan int, blocks)
+		sl := 0
+		for i := 0; i < len(textLines); i += SLICESIZE {
+			end := i + SLICESIZE
+			if end > len(textLines) {
+				end = len(textLines)
+			}
+			sl++
+			go count_slice_words_to_reschan(textLines[i:end], reschan)
+		}
 
+		words := 0
+		for i := 0; i < sl; i++ {
+			words += <-reschan
+		}
+		close(reschan)
+	}
 
 	if !options.ShowOnlyTotal {
 		printLine(lines, words, chars, bytes, path)
@@ -200,7 +206,11 @@ func processText(b *DataBag, txt, path string, options *Options, filesize int64)
 	b.bytes_count += bytes
 }
 
-func count_slice_words_to_reschan(lines []string, reschan chan <- int) {
+func count_slice_words_to_reschan(lines []string, reschan chan<- int) {
+	reschan <- count_slice_words(lines)
+}
+
+func count_slice_words(lines []string) int {
 	words := 0
 	for _, line := range lines {
 		splitFunc := func(r rune) bool {
@@ -208,5 +218,5 @@ func count_slice_words_to_reschan(lines []string, reschan chan <- int) {
 		}
 		words += len(strings.FieldsFunc(strings.Trim(line, " \t"), splitFunc))
 	}
-	reschan <- words
+	return words
 }
