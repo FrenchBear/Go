@@ -46,26 +46,49 @@ import (
 	"unicode/utf8"
 )
 
+const path string = `C:\Development\TestFiles\Text\Les secrets d'Hermione.txt`
+
 func main() {
 	fmt.Println("Go wc Parallel")
 
-	test(100)
-	test(200)
-	test(500)
-	for bs:=1000;bs<=20000;bs+=1000 {
-		test(bs)
-	}
-	test(50000)
-	test(100000)
+	// test_block(100)
+	// test_block(200)
+	// test_block(500)
+	// for bs := 1000; bs <= 20000; bs += 1000 {
+	// 	test_block(bs)
+	// }
+	// test_block(50000)
+	// test_block(100000)
+
+	test_block(6000)
+
+	test_linear(count_linear_1, "Linear 1")
+	test_linear(count_linear_2, "Linear 2")
+	test_linear(count_linear_3, "Linear 3")
+	test_linear(count_linear_4, "Linear 4")
 }
 
-func test(blocksize int) {
+func test_linear(count_linear_func func() WCRes, name string) {
 	var res WCRes
-	const REPEATS=10
+	const REPEATS = 10
 	times := make([]float64, REPEATS)
 	for repeat := 0; repeat < REPEATS; repeat++ {
 		start := time.Now()
-		res = count(blocksize)
+		res = count_linear_func()
+		duration := time.Since(start)
+		times = append(times, float64(duration.Milliseconds())/1000.0)
+	}
+	d := Median(times)
+	fmt.Printf("%-16s  li:%6d  wo:%8d ru:%8d by:%8d, Duration: %.3fs\n", name, res.lines, res.words, res.runes, res.bytes, d)
+}
+
+func test_block(blocksize int) {
+	var res WCRes
+	const REPEATS = 10
+	times := make([]float64, REPEATS)
+	for repeat := 0; repeat < REPEATS; repeat++ {
+		start := time.Now()
+		res = count_parallel(blocksize)
 		duration := time.Since(start)
 		times = append(times, float64(duration.Milliseconds())/1000.0)
 	}
@@ -95,9 +118,77 @@ type WCRes struct {
 	bytes int
 }
 
-func count(blocksize int) WCRes {
-	path := `C:\Development\TestFiles\Text\Les secrets d'Hermione.txt`
+func count_linear_1() WCRes {
+	file, err := os.Open(path)
+	if err != nil {
+		return WCRes{}
+	}
+	defer file.Close()
+	var lines []string
+	scanner := bufio.NewScanner(file)
+	for scanner.Scan() {
+		lines = append(lines, scanner.Text())
+	}
+	return count_slice_core(lines)
+}
 
+func count_linear_2() WCRes {
+	file, err := os.Open(path)
+	if err != nil {
+		return WCRes{}
+	}
+	defer file.Close()
+	res := WCRes{}
+	scanner := bufio.NewScanner(file)
+	for scanner.Scan() {
+		count_line(&res, scanner.Text())
+	}
+	return res
+}
+
+func count_linear_3() WCRes {
+	file, err := os.Open(path)
+	if err != nil {
+		return WCRes{}
+	}
+	defer file.Close()
+	res := WCRes{}
+	scanner := bufio.NewScanner(file)
+	for scanner.Scan() {
+		go count_line(&res, scanner.Text())
+	}
+	return res
+}
+
+func count_linear_4() WCRes {
+	file, err := os.Open(path)
+	if err != nil {
+		return WCRes{}
+	}
+	defer file.Close()
+
+	data := make(chan string)
+	result := make(chan WCRes)
+
+	go func() {
+		res := WCRes{}
+		for s := range data {
+			count_line(&res, s)
+		}
+		result <- res
+		close(result)
+	}()
+
+	scanner := bufio.NewScanner(file)
+	for scanner.Scan() {
+		data <- scanner.Text()
+	}
+	close(data)
+	return <-result
+}
+
+
+func count_parallel(blocksize int) WCRes {
 	file, err := os.Open(path)
 	if err != nil {
 		return WCRes{}
@@ -113,21 +204,15 @@ func count(blocksize int) WCRes {
 		lines = append(lines, scanner.Text())
 		if len(lines) >= blocksize {
 			sl++
-			//fmt.Println("go count_slice", sl)
-			go count_slice(sl, lines, reschan)
+			go count_slice_to_reschan(lines, reschan)
 			lines = nil
 		}
 	}
 	if len(lines) > 0 {
 		sl++
-		//fmt.Println("go final count_slice", sl)
-		go count_slice(sl, lines, reschan)
+		go count_slice_to_reschan(lines, reschan)
 	}
 
-	// fmt.Println("Wait for goroutines to end")
-	// wg.Wait()
-
-	// fmt.Println("Read and cumulate results")
 	total := WCRes{}
 	for i := 0; i < sl; i++ {
 		res := <-reschan
@@ -140,19 +225,25 @@ func count(blocksize int) WCRes {
 	return total
 }
 
-func count_slice(_ int, lines []string, reschan chan WCRes) {
-	//fmt.Println("Start count_slice", sl)
+func count_slice_to_reschan(lines []string, reschan chan WCRes) {
+	reschan <- count_slice_core(lines)
+}
+
+func count_slice_core(lines []string) WCRes {
 	cnt := WCRes{}
 	for _, line := range lines {
-		cnt.lines++
-		cnt.runes += utf8.RuneCountInString(line)
-		cnt.bytes += len(line) + 1 // +1, arbitrary length of end-of-line, even if it's \r\n but we don't know -- Should replace that by file length
-
-		splitFunc := func(r rune) bool {
-			return r == ' ' || r == '\t'
-		}
-		cnt.words += len(strings.FieldsFunc(strings.Trim(line, " \t"), splitFunc))
+		count_line(&cnt, line)
 	}
-	reschan <- cnt
-	//fmt.Println("End count_slice", sl)
+	return cnt
+}
+
+func count_line(cnt *WCRes, line string) {
+	cnt.lines++
+	cnt.runes += utf8.RuneCountInString(line)
+	cnt.bytes += len(line) + 1 // +1, arbitrary length of end-of-line, even if it's \r\n but we don't know -- Should replace that by file length
+
+	splitFunc := func(r rune) bool {
+		return r == ' ' || r == '\t'
+	}
+	cnt.words += len(strings.FieldsFunc(strings.Trim(line, " \t"), splitFunc))
 }
