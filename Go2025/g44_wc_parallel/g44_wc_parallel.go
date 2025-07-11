@@ -62,13 +62,14 @@ func main() {
 
 	test_block(6000)
 
-	test_linear(count_linear_1, "Linear 1")
-	test_linear(count_linear_2, "Linear 2")
-	test_linear(count_linear_3, "Linear 3")
-	test_linear(count_linear_4, "Linear 4")
+	test(count_linear_1, "Linear 1")
+	test(count_linear_2, "Linear 2")
+	test(count_linear_3, "Linear 3")
+	test(count_linear_4, "Linear 4")
+	test(count_parallel_readall, "B6000 readall")
 }
 
-func test_linear(count_linear_func func() WCRes, name string) {
+func test(count_linear_func func() WCRes, name string) {
 	var res WCRes
 	const REPEATS = 10
 	times := make([]float64, REPEATS)
@@ -187,6 +188,44 @@ func count_linear_4() WCRes {
 	return <-result
 }
 
+func count_parallel_readall() WCRes {
+	file, err := os.Open(path)
+	if err != nil {
+		return WCRes{}
+	}
+	defer file.Close()
+
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return WCRes{}
+	}
+
+	reschan := make(chan WCRes, 100)
+
+	lines := strings.Split(strings.ReplaceAll(strings.ReplaceAll(string(data), "\r\n", "\n"), "\r", "\n"), "\n")
+	SLICESIZE := 6000
+	sl := 0
+	for i := 0; i < len(lines); i += SLICESIZE {
+		end := i + SLICESIZE
+		if end > len(lines) {
+			end = len(lines)
+		}
+		sl++
+		go count_slice_to_reschan(lines[i:end], reschan)
+	}
+
+	total := WCRes{}
+	for i := 0; i < sl; i++ {
+		res := <-reschan
+		total.lines += res.lines
+		total.words += res.words
+		total.runes += res.runes
+		total.bytes += res.bytes
+	}
+
+	return total
+
+}
 
 func count_parallel(blocksize int) WCRes {
 	file, err := os.Open(path)
