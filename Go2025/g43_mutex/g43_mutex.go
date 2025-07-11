@@ -2,6 +2,7 @@
 // Learning go, Concurrent programming, Mutexes, atomic, semaphores
 //
 // 2025-07-09	PV		First version
+// 2025-07-12	PV		Added SyncOnce example
 
 // This program tests "simple" mutex, but there is also sync.RWMutex that allows
 // multiple readers and a single writer (writer can't lock until at least a reader has the lock)
@@ -13,6 +14,8 @@ import (
 	"context"
 	"fmt"
 	"math/rand"
+	"regexp"
+	"strconv"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -23,10 +26,11 @@ import (
 func main() {
 	fmt.Println("Go Mutexes, Atomic, Monitor, Semaphores")
 
-	testMutex()
-	textAtomic()
-	testMonitor()
-	testSemaphore()
+	// testMutex()
+	// textAtomic()
+	// testMonitor()
+	// testSemaphore()
+	testSyncOnce()
 }
 
 // ======================================================================================================
@@ -238,4 +242,60 @@ func worker(n int) int {
 	square := n * n
 	time.Sleep(time.Second)
 	return square
+}
+
+// ======================================================================================================
+
+type StringBoolDate struct {
+	s string
+	b bool
+	d time.Time
+}
+
+func testSyncOnce() {
+	fmt.Printf("\nTest SyncOnce\n\n")
+
+	res := make(chan StringBoolDate)
+	tabstr := []string {
+		"Hello, world",
+		"Je suis né le 26/02/1965 à Chambéry",
+		"Nous sommes le 11/07/2025 à bientôt minuit",
+	}
+
+	var buildRegexOnce sync.Once
+	var reBuilt *regexp.Regexp
+	
+	getRegex := func () *regexp.Regexp  {
+		// Using sync.Once, we guarantee that the compilation of regew will only occur once
+		buildRegexOnce.Do(func() {
+			fmt.Println("Compiling regex")
+			reBuilt = regexp.MustCompile(`(\d{2})/(\d{2})/(\d{4})`)
+		})
+		return reBuilt
+	}
+
+	for _, str := range tabstr {
+		go func (s string)  {
+			re := getRegex()
+			match := re.FindStringSubmatch(s)
+			if len(match) == 4 {
+				day, _ := strconv.Atoi(match[1])
+				month, _ := strconv.Atoi(match[2])
+				year, _ := strconv.Atoi(match[3])
+				res <- StringBoolDate{s, true, time.Date(year, time.Month(month), day, 0, 0, 0, 0, time.UTC)}
+			} else {
+				res <- StringBoolDate{s, false, time.Time{}}
+			}
+		}(str)
+	}
+
+	for i:=0 ; i<3 ; i++ {
+		r := <-res
+		fmt.Printf("%-45.45s %v", r.s, r.b)
+		if r.b {
+			fmt.Printf("   %v", r.d)
+		}
+		fmt.Println()
+	}
+	close(res)
 }
