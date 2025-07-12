@@ -2,7 +2,7 @@
 // Tests for package textautodecode
 //
 // 2025-06-23	PV		First version
-// 2026-07-02 	PV 		External test project moved along package itself
+// 2025-07-02 	PV 		External test project moved along package itself
 
 package TextAutoDecode
 

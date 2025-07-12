@@ -1,8 +1,8 @@
 // gtt options.go
 // Parse and validate command line options, returning a clean Options struct
 //
-// 2027-07-05	PV 		First version, translated from Rust by Gemini
-// 2027-07-07 	PV 		Compact options -a+ and -a-
+// 2025-07-05	PV 		First version, translated from Rust by Gemini
+// 2025-07-07 	PV 		Compact options -a+ and -a-
 
 package main
 

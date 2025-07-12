@@ -1,7 +1,7 @@
 // gwc options.go
 // Parse and validate command line options, returning a clean Options struct
 //
-// 2027-07-10	PV 		First version
+// 2025-07-10	PV 		First version
 
 package main
 
@@ -17,10 +17,10 @@ import (
 )
 
 type Options struct {
-	Sources          []string
-	Autorecurse      bool
+	Sources       []string
+	Autorecurse   bool
 	ShowOnlyTotal bool
-	Verbose          bool
+	Verbose       bool
 }
 
 func header() {
@@ -53,7 +53,7 @@ func extendedUsage() {
 	fmt.Println("TextAutoDecode:", TextAutoDecode.Version())
 	fmt.Println("MyMarkup:", MyMarkup.Version())
 	fmt.Println()
-	
+
 	text := `⟪⌊Advanced usage notes⌋⟫
 
 The four numerical fields report lines, words, characters and bytes counts. For UTF-8 or UTF-16 encoded files, a character is a Unicode codepoint, so bytes and characters counts may be different. Characters count neither include line terminators, nor BOM if present. Bytes count is the total file size as reported by the operating system, including line terminators and BOM if present.
@@ -114,7 +114,6 @@ func NewOptions() (*Options, error) {
 	if *autorecurseMinus {
 		options.Autorecurse = false
 	}
-
 
 	options.Sources = flag.Args()
 

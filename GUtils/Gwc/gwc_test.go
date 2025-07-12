@@ -1,6 +1,6 @@
 // Tests for Gwc
 //
-// 2027-07-10 	PV 		First version
+// 2025-07-10 	PV 		First version
 
 package main
 

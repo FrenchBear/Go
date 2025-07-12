@@ -26,10 +26,10 @@ import (
 func main() {
 	fmt.Println("Go Mutexes, Atomic, Monitor, Semaphores")
 
-	// testMutex()
-	// textAtomic()
-	// testMonitor()
-	// testSemaphore()
+	testMutex()
+	textAtomic()
+	testMonitor()
+	testSemaphore()
 	testSyncOnce()
 }
 

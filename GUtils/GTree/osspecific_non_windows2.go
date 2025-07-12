@@ -3,7 +3,7 @@
 // osspecific_non_windows.go
 // Non-windows specific code
 //
-// 2026-07-02	PV 		First version, also first example of os-specific compilation
+// 2025-07-02	PV 		First version, also first example of os-specific compilation
 
 package main
 

@@ -1,6 +1,6 @@
 // Tests for Gtt
 //
-// 2027-07-05 	PV 		Translation of Rust equivalent by Gemini
+// 2025-07-05 	PV 		Translation of Rust equivalent by Gemini
 
 package main
 

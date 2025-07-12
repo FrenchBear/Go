@@ -1,8 +1,8 @@
 // Gtt tool, prints text type for text files
 // Translation of Rtt utility
 //
-// 2027-07-05 	PV 		Initial translation by Gemini
-// 2027-07-07 	PV 		1.03 Compact options -a+ and -a-
+// 2025-07-05 	PV 		Initial translation by Gemini
+// 2025-07-07 	PV 		1.03 Compact options -a+ and -a-
 
 /*
 I need to translate a simple command line Rust program into its equivalent in Go.
