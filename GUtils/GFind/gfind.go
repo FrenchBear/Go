@@ -5,13 +5,13 @@ package main
 
 import (
 	"fmt"
+	"io"
 	"os"
-	// "github.com/PieVio/MyMarkup"
-)
+	"path/filepath"
+	"strings"
+	"time"
 
-const (
-	appName    = "gfind"
-	appVersion = "1.0.0"
+	"github.com/PieVio/MyGlob"
 )
 
 const (
@@ -31,168 +31,189 @@ func main() {
 		os.Exit(1)
 	}
 
-	fmt.Println(options)
-
-}
-
-	/*
 	start := time.Now()
 
 	// Adjust sources if option -name is used
-	if len(args.Names) > 0 {
-		name := strings.Join(args.Names, ",")
-		if len(args.Names) > 1 {
-			name = "{" + name + "}"
+	if len(options.names) > 0 {
+		var name string
+		if len(options.names) == 1 {
+			name = options.names[0]
+		} else {
+			name = strings.Join(options.names, ",")
 		}
 
-		for i, source := range args.Sources {
+		for i, source := range options.sources {
 			info, err := os.Stat(source)
 			if err == nil && info.IsDir() {
-				args.Sources[i] = filepath.Join(source, "**", name)
+				options.sources[i] = filepath.Join(options.sources[i], "**", name)
 			}
 		}
 	}
 
-	// devtemp
-	fmt.Printf("%q\n", args)
-	for _, source := range args.Sources {
-		fmt.Println("- ", source)
-	}
-	duration := time.Since(start)
-
-
-	fmt.Println(duration.Seconds())
-
-	/*
-	var filesCount, dirsCount int
-
-	for _, source := range args.Sources {
-		mg, err := MyGlob.New(source).Autorecurse(args.AutoRecurse).Compile()
+	// Convert String sources into MyGlobSearch structs
+	sources := make([]*MyGlob.MyGlobSearch, len(options.sources))
+	for i, source := range options.sources {
+		mg, err := MyGlob.New(source).Autorecurse(options.autorecurse).Compile()
 		if err != nil {
 			fmt.Printf("*** Error building MyGlob: %v\n", err)
 			continue
 		}
+		sources[i] = mg
+	}
 
-		for match := range mg.Explore() {
-			if match.Err != nil {
-				if args.Verbose {
-					fmt.Printf("%s: MyGlobMatch error %v\n", appName, match.Err)
+	if len(sources) == 0 {
+		fmt.Fprintf(os.Stderr, "*** No source specified. Use %s ? to show usage.", APP_NAME)
+		os.Exit(1)
+	}
+
+	if options.verbose {
+		fmt.Print("Sources(s): ")
+		if options.search_dirs && options.search_files {
+			fmt.Println("(search for files and directories)")
+		} else if options.search_dirs {
+			fmt.Println("(search for directories)")
+		} else {
+			fmt.Println("(search for files)")
+		}
+
+		for _, source := range options.sources {
+			fmt.Println("- ", source)
+		}
+	}
+
+	actions := make([]IAction, 0) //, len(options.actions_names))
+	for action := range options.actions_names {
+		switch action {
+		case "print":
+			if _, ok := options.actions_names["dir"]; ok {
+				fmt.Println("*** Both actions print and dir used, action print ignored.")
+			} else {
+				actions = append(actions, &action_print{detailed_output: false})
+			}
+
+		case "dir":
+			actions = append(actions, &action_print{detailed_output: true})
+
+		case "delete":
+			actions = append(actions, &action_delete{recycle: options.recycle})
+
+		case "rmdir":
+			actions = append(actions, &action_rmdir{recycle: options.recycle})
+
+		default:
+			panic("Invalid action: " + action)
+		}
+	}
+
+	if options.verbose {
+		fmt.Print("\nAction(s): ")
+		if options.noaction {
+			fmt.Println("(no action will actually be performed)")
+		} else {
+			fmt.Println()
+		}
+
+		for _, action := range actions {
+			fmt.Println("-", action.name())
+		}
+		fmt.Println()
+		if options.isempty {
+			fmt.Println("Only search for empty files or directories")
+		}
+	}
+
+	files_count := 0
+	dirs_count := 0
+
+	for _, gs := range sources {
+		for ma := range gs.Explore() {
+			if ma.Err != nil {
+				if options.verbose {
+					fmt.Printf("%s: MyGlobMatch error %v\n", APP_NAME, ma.Err)
 				}
 				continue
 			}
-
-			info, err := os.Stat(match.Path)
+			info, err := os.Stat(ma.Path)
 			if err != nil {
 				continue
 			}
 
-			isFile := !info.IsDir()
-			isDir := info.IsDir()
-
-			searchFile := args.Search == "files" || args.Search == "both"
-			searchDir := args.Search == "dirs" || args.Search == "both"
-
-			if (searchFile && isFile) || (searchDir && isDir) {
-				if args.IsEmpty {
-					if isFile && info.Size() != 0 {
-						continue
-					}
-					if isDir {
-						f, err := os.Open(match.Path)
-						if err != nil {
-							continue
-						}
-						_, err = f.Readdirnames(1)
-						f.Close()
-						if err == nil { // Not empty
-							continue
-						}
+			if !ma.IsDir {
+				if options.search_files && (!options.isempty || info.Size() == 0) {
+					files_count++
+					for _, ba := range actions {
+						ba.action(ma.Path, info, options.noaction, options.verbose)
 					}
 				}
-
-				if isFile {
-					filesCount++
-				} else {
-					dirsCount++
+			} else {
+				if options.search_dirs && (!options.isempty || IsDirEmpty(ma.Path)) {
+					dirs_count++
+					for _, ba := range actions {
+						ba.action(ma.Path, info, options.noaction, options.verbose)
+					}
 				}
-
-				action(match.Path, info)
 			}
 		}
 	}
 
 	duration := time.Since(start)
 
-	if args.Verbose {
-		if filesCount+dirsCount > 0 {
+	if options.verbose {
+		if files_count+dirs_count > 0 {
 			fmt.Println()
 		}
-		if args.Search == "files" || args.Search == "both" {
-			fmt.Printf("%d files(s)", filesCount)
+
+		if options.search_files {
+			fmt.Printf("%d file(s)", files_count)
 		}
-		if args.Search == "dirs" || args.Search == "both" {
-			if args.Search == "both" {
+		if options.search_dirs {
+			if options.search_files {
 				fmt.Print(", ")
 			}
-			fmt.Printf("%d dir(s)", dirsCount)
+			fmt.Printf("%d dir(s)", dirs_count)
 		}
-		fmt.Printf(" found in %.3fs\n", duration.Seconds())
+		fmt.Printf(" found in %.3fs\n", float64(duration.Milliseconds())/1000.0)
 	}
 }
 
-func action(path string, info os.FileInfo) {
-	if args.Print || (!args.Dir && !args.Delete && !args.RmDir) {
-		fmt.Println(path)
+// IsDirEmpty checks if a directory is empty. It returns true if the directory
+// is empty, and false otherwise. An error is returned if the path does not
+// exist or is not a directory.
+func IsDirEmpty(path string) bool {
+	// Open the directory
+	dir, err := os.Open(path)
+	if err != nil {
+		return false
+	}
+	defer dir.Close()
+
+	// Attempt to read just one directory entry.
+	// Readdirnames(1) is more efficient than Readdir(-1) as it stops after the first entry.
+	_, err = dir.Readdirnames(1)
+
+	// If we get an End-Of-File error, it means the directory is empty.
+	if err == io.EOF {
+		return true
 	}
 
-	if args.Dir {
-		modTime := info.ModTime().Format("2006-01-02 15:04:05")
-		size := ""
-		if !info.IsDir() {
-			size = humanize.Bytes(uint64(info.Size()))
-		} else {
-			size = "<DIR>"
-		}
-		fmt.Printf("%-20s %15s %s\n", modTime, size, path)
+	// If there was another error, return it.
+	if err != nil {
+		return false
 	}
 
-	if args.Delete && !info.IsDir() {
-		performDelete(path)
-	}
-
-	if args.RmDir && info.IsDir() {
-		performDelete(path)
-	}
+	// Otherwise, the directory is not empty.
+	return false
 }
 
-func performDelete(path string) {
-	quotedPath := path
-	if strings.Contains(quotedPath, " ") {
-		quotedPath = "\"" + quotedPath + "\""
-	}
-
-	logMsg := ""
-	if args.Recycle {
-		logMsg = fmt.Sprintf("RECYCLE %s", quotedPath)
-	} else {
-		logMsg = fmt.Sprintf("DEL %s", quotedPath)
-	}
-	fmt.Println(MyMarkup.BuildMarkup(logMsg))
-
-	if !args.NoAction {
-		var err error
-		if args.Recycle {
-			// Go does not have a built-in recycle bin functionality.
-			// For now, we will just print a message.
-			fmt.Println(MyMarkup.BuildMarkup("  `-> Recycle bin not implemented in this Go version."))
-		} else {
-			err = os.RemoveAll(path)
-		}
-
-		if err != nil {
-			fmt.Printf("*** Error deleting %s: %v\n", quotedPath, err)
-		} else if args.Verbose {
-			fmt.Printf("File %s deleted successfully.\n", quotedPath)
+/*
+// Since Go doesn't contain the bare minimum functionality...
+// contains checks if a string is present in a slice of strings.
+func contains(slice []string, str string) bool {
+	for _, item := range slice {
+		if item == str {
+			return true
 		}
 	}
-		*/
+	return false
+}
+*/

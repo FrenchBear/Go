@@ -149,8 +149,15 @@ func TestSearch(t *testing.T) {
 		{"RecursiveDoubleExt", `C:\Temp\search1\**\*.*.*`, false, nil, 1, 0},
 		{"FilesInLegumes", `C:\Temp\search1\légumes\*`, false, nil, 3, 0},
 		{"ComplexFilter", `C:\Temp\search1\*s\to[a-z]a{r,s,t}e.t[xX]t`, false, nil, 2, 0},
-		{"AutorecurseTxt", `C:\Temp\search1\*.txt`, true, nil, 8, 0},
-		{"AutorecurseRoot", `C:\Temp\search1`, true, nil, 9, 2},
+
+		// Testing autorecurse
+		{"AutorecurseTxtOff", `C:\Temp\search1\*.txt`, false, nil, 1, 0},
+		{"AutorecurseTxtOn", `C:\Temp\search1\*.txt`, true, nil, 8, 0},
+		{"AutorecurseRootOff", `C:\Temp\search1`, false, nil, 0, 1},
+		{"AutorecurseRootOn", `C:\Temp\search1`, true, nil, 9, 2},
+		{"AutorecurseRootOnEndSlash", `C:\Temp\search1\`, true, nil, 9, 2},		// Test with final \
+
+		// Testing ignore
 		{"IgnoreLegumes", `C:\Temp\search1\**\*.txt`, false, []string{"Légumes"}, 5, 0},
 	}
 

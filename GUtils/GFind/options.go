@@ -6,6 +6,7 @@ package main
 
 import (
 	"fmt"
+	"os"
 	"strings"
 
 	"github.com/PieVio/MyGlob"
@@ -15,7 +16,7 @@ import (
 
 type Options struct {
 	sources       []string
-	Actions_names map[string]bool
+	actions_names map[string]bool
 	search_files  bool
 	search_dirs   bool
 	names         []string
@@ -56,7 +57,7 @@ func usage() {
 ⦃-rmdir⦄           ¬Delete matching directories, whether empty or not`
 
 	MyMarkup.RenderMarkup(strings.ReplaceAll(text, "{APP_NAME}", APP_NAME))
-    }
+}
 
 func extendedUsage() {
 	header()
@@ -72,14 +73,108 @@ func extendedUsage() {
 
 ⌊Compatibility with XFind⌋:
 - ¬Option ⦃-norecycle⦄ can be used instead of ⦃-r-⦄ to indicate to delete forever.
-- ¬Option -name can be used to indicate a specific file name to search.`
+- ¬Option ⦃-name⦄ can be used to indicate a specific file name or pattern to search.`
 
 	MyMarkup.RenderMarkup(strings.ReplaceAll(text, "{APP_NAME}", APP_NAME))
 	fmt.Println()
 	MyMarkup.RenderMarkup(MyGlob.GlobSyntax())
-}	
+}
 
 func NewOptions() (*Options, error) {
+	opt := Options{autorecurse: true, recycle: true}
 
-	return &Options{}, nil
+	for i := 1; i < len(os.Args); i++ {
+		arg := os.Args[i]
+
+		if strings.HasPrefix(arg, "-") {
+			// Options are case insensitive
+			argls := strings.ToLower(arg[1:])
+
+			switch argls {
+			case "?", "h", "help", "-help":
+				usage()
+				return nil, fmt.Errorf("")
+			case "v":
+				opt.verbose = true
+			case "n", "noaction":
+				opt.noaction = true
+			case "f":
+				opt.search_files = true
+			case "d":
+				opt.search_dirs = true
+			case "type":
+				if i == len(os.Args)-1 {
+					return nil, fmt.Errorf("Option -type requires an argument f or d")
+				}
+				i++
+				argopt := os.Args[i]
+				switch argopt {
+				case "f":
+					opt.search_files = true
+				case "d":
+					opt.search_dirs = true
+				default:
+					return nil, fmt.Errorf("Option -type requires an argument f or d")
+				}
+
+			case "name":
+				if i == len(os.Args)-1 {
+					return nil, fmt.Errorf("Option -type requires an argument f or d")
+				}
+				i++
+				argopt := os.Args[i]
+				opt.names = append(opt.names, argopt)
+
+			case "e", "empty":
+				opt.isempty = true
+
+			case "r+", "recycle":
+				opt.recycle = true
+			case "r-", "norecycle":
+				opt.recycle = false
+
+			case "a+":
+				opt.autorecurse = true
+			case "a-":
+				opt.autorecurse = false
+
+			case "print":
+				opt.actions_names = map[string]bool{"print": true}
+			case "dir":
+				opt.actions_names = map[string]bool{"dir": true}
+			case "rm", "del", "delete":
+				opt.actions_names = map[string]bool{"delete": true}
+			case "rd", "rmdir":
+				opt.actions_names = map[string]bool{"rmdir": true}
+
+			default:
+				return nil, fmt.Errorf("Invalid/unsupported option %s", arg)
+
+			}
+		} else {
+			switch strings.ToLower(arg) {
+			case "?", "h", "help", "-help":
+				usage()
+				return nil, fmt.Errorf("")
+			case "??":
+				extendedUsage()
+				return nil, fmt.Errorf("")
+			default:
+				opt.sources = append(opt.sources, arg)
+			}
+		}
+	}
+
+	// If neither filtering files or dirs has been requested, then we search for both
+	if !opt.search_dirs && !opt.search_files {
+		opt.search_dirs = true
+		opt.search_files = true
+	}
+
+	// If no action is specified, then print action is default
+	if len(opt.actions_names) == 0 {
+		opt.actions_names = map[string]bool{"print": true}
+	}
+
+	return &opt, nil
 }

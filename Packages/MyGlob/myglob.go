@@ -2,6 +2,12 @@
 // MyGlob package, my own implementation of glob search
 //
 // 2025-07-01	PV 		Converted from Rust by Gemini
+// 2025-07-12	PV 		1.1.0 Accepts tapperns ending with / or \, and special case for "?:\"
+
+// ToDo:
+// - Update reference to https://docs.rs/regex/latest/regex/#character-classes
+// - Check Go regexp possibilities
+// - In Go, it's regexp, not regex!
 
 package MyGlob
 
@@ -14,7 +20,7 @@ import (
 )
 
 const (
-	LIB_VERSION = "1.0.0"
+	LIB_VERSION = "1.1.0"
 )
 
 // Segment is an interface for a segment of a glob pattern.
@@ -43,10 +49,10 @@ func (f FilterSegment) isSegment() {}
 
 // MyGlobSearch is the main struct of MyGlob.
 type MyGlobSearch struct {
-	root        string
-	segments    []Segment
-	ignoreDirs  []string
-	isConstant  bool
+	root       string
+	segments   []Segment
+	ignoreDirs []string
+	isConstant bool
 }
 
 // MyGlobBuilder is used to build a MyGlobSearch object.
@@ -78,13 +84,13 @@ func GlobSyntax() string {
 - ¬⟦**⟧ matches the current directory and arbitrary subdirectories. To match files in arbitrary subdirectories, use ⟦**/*⟧. This sequence must form a single path component, so both ⟦**a⟧ and ⟦b**⟧ are invalid and will result in an error.
 - ¬⟦[...]⟧ matches any character inside the brackets. Character sequences can also specify ranges of characters (Unicode order), so ⟦[0-9]⟧ specifies any character between 0 and 9 inclusive. Special cases: ⟦[[]⟧ represents an opening bracket, ⟦[]]⟧ represents a closing bracket. 
 - ¬⟦[!...]⟧ is the negation of ⟦[...]⟧, it matches any characters not in the brackets.
-- ¬The metacharacters ⟦?⟧, ⟦*⟧, ⟦[⟧, ⟦]⟧ can be matched by escaping them between brackets such as ⟦[\?]⟧ or ⟦[\[]⟧. When a ⟦]⟧ occurs immediately following ⟦[⟧ or ⟦[!⟧ then it is interpreted as being part of, rather then ending, the character set, so ⟦]⟧ and NOT ⟦]⟧ can be matched by ⟦[]]⟧ and ⟦[!]]⟧ respectively. The ⟦-⟧ character can be specified inside a character sequence pattern by placing it at the start or the end, e.g. ⟦[abc-]⟧.
+- ¬The metacharacters ⟦?⟧, ⟦*⟧, ⟦[⟧, ⟦]⟧ can be matched by escaping them between brackets such as ⟦[\?]⟧ or ⟦[\[]⟧. When a ⟦]⟧ occurs immediately following ⟦[⟧ or ⟦[!⟧ then it is interpreted as being part of, rather than ending the character set, so ⟦]⟧ and NOT ⟦]⟧ can be matched by ⟦[]]⟧ and ⟦[!]]⟧ respectively. The ⟦-⟧ character can be specified inside a character sequence pattern by placing it at the start or the end, e.g. ⟦[abc-]⟧.
 - ¬⟦{choice1,choice2...}⟧  match any of the comma-separated choices between braces. Can be nested, and include ⟦?⟧, ⟦*⟧ and character classes.
 - ¬Character classes ⟦[ ]⟧ accept regex syntax such as ⟦[\d]⟧ to match a single digit, see https://docs.rs/regex/latest/regex/#character-classes for character classes and escape sequences supported.
 
 ⌊Autorecurse glob pattern transformation⌋:
 - ¬⟪Constant pattern⟫ (no filter, no ⟦**⟧) pointing to a directory: ⟦/**/*⟧ is appended at the end to search all files of all subdirectories.
-- ¬⟪Patterns without ⟦**⟧ and ending with a filter⟫: ⟦/**⟧ is inserted before final filter to find all matching files of all subdirectories.`
+- ¬⟪Patterns without ⟦**⟧ and ending with a filter⟫: ⟦/**⟧ is inserted before the final filter to find all matching files of all subdirectories.`
 }
 
 // New creates a new MyGlobBuilder.
@@ -116,27 +122,38 @@ func (b *MyGlobBuilder) Compile() (*MyGlobSearch, error) {
 	if b.globPattern == "" {
 		return nil, MyGlobError{"Glob pattern can't be empty"}
 	}
-	if strings.HasSuffix(b.globPattern, "\\") || strings.HasSuffix(b.globPattern, "/") {
-		return nil, MyGlobError{"Glob pattern can't end with \\ or /"}
-	}
+
+	// Don't complain if glob ends with a \, just remove it
+	b.globPattern = strings.TrimSuffix(b.globPattern, "\\")
+	b.globPattern = strings.TrimSuffix(b.globPattern, "/")
 
 	dirSep := string(os.PathSeparator)
 	glob := b.globPattern + dirSep
 
 	var cut, pos int
-	for i, c := range glob {
-		if strings.ContainsRune("*?[{", c) {
-			break
-		}
-		if c == '/' || c == '\\' {
-			cut = i
-		}
-		pos = i + 1
-	}
+	var root string
 
-	root := glob[:cut]
-	if root == "" {
-		root = "."
+	// Special case for windows, a pattern such as C:\ is considered as root, inluding final \,
+	// this final \ is not considered as a cut point
+	if len(glob) == 3 && glob[1] == ':' {
+		root = glob
+		cut = 3
+		pos = 4
+	} else {
+		for i, c := range glob {
+			if strings.ContainsRune("*?[{", c) {
+				break
+			}
+			if c == '/' || c == '\\' {
+				cut = i
+			}
+			pos = i + 1
+		}
+
+		root = glob[:cut]
+		if root == "" {
+			root = "."
+		}
 	}
 
 	var segments []Segment
@@ -181,10 +198,10 @@ func (b *MyGlobBuilder) Compile() (*MyGlobSearch, error) {
 	}
 
 	return &MyGlobSearch{
-		root:        root,
-		segments:    segments,
-		ignoreDirs:  b.ignoreDirs,
-		isConstant:  len(segments) == 0,
+		root:       root,
+		segments:   segments,
+		ignoreDirs: b.ignoreDirs,
+		isConstant: len(segments) == 0,
 	}, nil
 }
 
@@ -299,8 +316,8 @@ func globToSegments(globPattern string) ([]Segment, error) {
 
 // MyGlobMatch represents a match from a glob search.
 type MyGlobMatch struct {
-	Path string
-	Err  error
+	Path  string
+	Err   error
 	IsDir bool
 }
 
