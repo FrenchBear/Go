@@ -2,6 +2,7 @@
 // Tests for MyGlob package
 //
 // 2025-07-01	PV 		Converted from Rust by Gemini
+// 2025-07-13   PV      Tests with chinese characters
 
 package MyGlob
 
@@ -115,6 +116,8 @@ func globOneSegmentTest(t *testing.T, globPattern, testString string, isMatch bo
 func setupSearchTests() {
 	_ = os.MkdirAll(`C:\Temp\search1\fruits`, 0755)
 	_ = os.MkdirAll(`C:\Temp\search1\légumes`, 0755)
+	_ = os.MkdirAll(`C:\Temp\search1\我爱你`, 0755)
+	_ = os.MkdirAll(`C:\Temp\search1\我爱你\\Ƥḭҽɾɾҽ ѵìǫłҽղէ`, 0755)
 	_ = os.WriteFile(`C:\Temp\search1\fruits et légumes.txt`, []byte("Des fruits et des légumes"), 0644)
 	_ = os.WriteFile(`C:\Temp\search1\info`, []byte("Information"), 0644)
 	_ = os.WriteFile(`C:\Temp\search1\fruits\pomme.txt`, []byte("Pomme"), 0644)
@@ -124,6 +127,11 @@ func setupSearchTests() {
 	_ = os.WriteFile(`C:\Temp\search1\légumes\épinard.txt`, []byte("Épinard"), 0644)
 	_ = os.WriteFile(`C:\Temp\search1\légumes\tomate.txt`, []byte("Tomate"), 0644)
 	_ = os.WriteFile(`C:\Temp\search1\légumes\pomme.de.terre.txt`, []byte("Pomme de terre"), 0644)
+	_ = os.WriteFile(`C:\Temp\search1\我爱你\你好世界.txt`,                  []byte("Hello world"), 0644)
+    _ = os.WriteFile(`C:\Temp\search1\我爱你\tomate.txt`,                    []byte("Hello Tomate"), 0644)
+    _ = os.WriteFile(`C:\Temp\search1\我爱你\Ƥḭҽɾɾҽ ѵìǫłҽղէ\tomate.txt`,     []byte("Hello Tomate"), 0644)
+    _ = os.WriteFile(`C:\Temp\search1\我爱你\Ƥḭҽɾɾҽ ѵìǫłҽղէ\Aé♫山𝄞🐗.txt`,  []byte("Random 1"), 0644)
+    _ = os.WriteFile(`C:\Temp\search1\我爱你\Ƥḭҽɾɾҽ ѵìǫłҽղէ\œæĳøß≤≠Ⅷﬁﬆ.txt`, []byte("Random 2"), 0644)
 }
 
 func teardownSearchTests() {
@@ -139,26 +147,33 @@ func TestSearch(t *testing.T) {
 		expectedFiles int
 		expectedDirs  int
 	}{
+		// Basic testing
 		{"InfoFile", `C:\Temp\search1\info`, false, nil, 1, 0},
-		{"AllInRoot", `C:\Temp\search1\*`, false, nil, 2, 2},
+		{"AllInRoot", `C:\Temp\search1\*`, false, nil, 2, 3},
 		{"TxtInRoot", `C:\Temp\search1\*.*`, false, nil, 1, 0},
 		{"FilesInFruits", `C:\Temp\search1\fruits\*`, false, nil, 4, 0},
 		{"PFilesInTwoDirs", `C:\Temp\search1\{fruits,légumes}\p*`, false, nil, 3, 0},
 		{"RecursivePFiles", `C:\Temp\search1\**\p*`, false, nil, 3, 0},
-		{"RecursiveTxtFiles", `C:\Temp\search1\**\*.txt`, false, nil, 8, 0},
+		{"RecursiveTxtFiles", `C:\Temp\search1\**\*.txt`, false, nil, 13, 0},
 		{"RecursiveDoubleExt", `C:\Temp\search1\**\*.*.*`, false, nil, 1, 0},
 		{"FilesInLegumes", `C:\Temp\search1\légumes\*`, false, nil, 3, 0},
 		{"ComplexFilter", `C:\Temp\search1\*s\to[a-z]a{r,s,t}e.t[xX]t`, false, nil, 2, 0},
 
+		// Multibyte runes
+		{"Multibytes1", `C:\Temp\search1\**\*爱*\*a*.txt`, false, nil, 1, 0},
+		{"Multibytes2", `C:\Temp\search1\**\*爱*\**\*a*.txt`, false, nil, 3, 0},
+		{"Multibytes3", `C:\Temp\search1\我爱你\**\*🐗*`, false, nil, 1, 0},
+
 		// Testing autorecurse
 		{"AutorecurseTxtOff", `C:\Temp\search1\*.txt`, false, nil, 1, 0},
-		{"AutorecurseTxtOn", `C:\Temp\search1\*.txt`, true, nil, 8, 0},
+		{"AutorecurseTxtOn", `C:\Temp\search1\*.txt`, true, nil, 13, 0},
 		{"AutorecurseRootOff", `C:\Temp\search1`, false, nil, 0, 1},
-		{"AutorecurseRootOn", `C:\Temp\search1`, true, nil, 9, 2},
-		{"AutorecurseRootOnEndSlash", `C:\Temp\search1\`, true, nil, 9, 2},		// Test with final \
+		{"AutorecurseRootOn", `C:\Temp\search1`, true, nil, 14, 4},
+		{"AutorecurseRootOnEndSlash", `C:\Temp\search1\`, true, nil, 14, 4},		// Test with final \
 
 		// Testing ignore
-		{"IgnoreLegumes", `C:\Temp\search1\**\*.txt`, false, []string{"Légumes"}, 5, 0},
+		{"IgnoreLegumes", `C:\Temp\search1\**\*.txt`, false, []string{"Légumes"}, 10, 0},
+		{"IgnoreLegumesAndOther", `C:\Temp\search1\**\*.txt`, false, []string{"Légumes","我爱你"}, 5, 0},
 	}
 
 	for _, tt := range tests {
