@@ -3,6 +3,18 @@
 //
 // 2025-06-28	PV		First version
 // 2025-07-02	PV		Added analyze_links
+// 2025-07-13	PV		Attempted optimization for large directories with readDirStream
+
+/*
+os.ReadDir is really slow on large directories (>10000 entries), since it has to read all entries in
+an array first, and call stat on each entry before returning, blocking calling thread for seconds until it's done.
+Function readDirStream is an attempted optimization reading entrines by slices of 100, and returning results in
+a channel: it works in a secondary thread, start returning results immediately, and use less memory.
+But comparison shows that at the end, both approaches take about the same time, so it's not a great optimization.
+os.ReadDir: 4.7s, readDirStream: 4.3s, a reduction of 8.5% of execution time
+Pros of readDirStream: responding app without blocking delays, interesting if enumeration may stop before the end
+Cons of readDirStream: total optimization is negligible, can't sort results
+*/
 
 package main
 
@@ -13,19 +25,36 @@ import (
 	"strconv"
 	"strings"
 	"syscall"
+	"time"
 )
 
 func main() {
 	fmt.Printf("Go Directories\n\n")
 
-	test_sum_files_size()
+	//test_sum_files_size()
+
+	start := time.Now()
 	analyze_links()
+	duration := time.Since(start)
+	fmt.Printf("Duration %.3fs\n", float64(duration.Milliseconds())/1000.0)
 }
 
 func analyze_links() {
-	r := `C:\`
-	entries, _ := os.ReadDir(r)
-	for _, entry := range entries {
+	r := `C:\Windows\servicing\Packages`
+
+	// v1, use os.ReadDir, awfully slow
+	// entries, _ := os.ReadDir(r)
+	// for _, entry := range entries {
+
+	// v2
+	for direntry := range readDirStream(r) {
+		if direntry.Err != nil {
+			fmt.Println("Error:", direntry.Err)
+			continue
+		}
+		entry := direntry.Entry
+
+	// -- common
 		info, _ := entry.Info()
 
 		fp := filepath.Join(r, entry.Name())
@@ -48,7 +77,6 @@ func analyze_links() {
 			fmt.Println("OTHR:", entry.Name())
 		}
 	}
-
 }
 
 func test_sum_files_size() {

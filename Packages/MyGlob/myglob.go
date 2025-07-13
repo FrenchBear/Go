@@ -369,12 +369,22 @@ func (gs *MyGlobSearch) Explore() <-chan MyGlobMatch {
 					}
 				}
 				if item.recurse {
-					entries, err := os.ReadDir(item.path)
-					if err != nil {
-						ch <- MyGlobMatch{Err: err}
-						continue
-					}
-					for _, entry := range entries {
+					// v2
+					// entries, err := os.ReadDir(item.path)
+					// if err != nil {
+					// 	ch <- MyGlobMatch{Err: err}
+					// 	continue
+					// }
+					// for _, entry := range entries {
+
+					// v2
+					for direntry := range readDirStream(item.path, true) {
+						if direntry.Err != nil {
+							ch <- MyGlobMatch{Err: direntry.Err}
+							continue
+						}
+						entry := direntry.Entry
+
 						if entry.IsDir() {
 							p := filepath.Join(item.path, entry.Name())
 							fnlc := strings.ToLower(entry.Name())
@@ -391,16 +401,29 @@ func (gs *MyGlobSearch) Explore() <-chan MyGlobMatch {
 						}
 					}
 				}
+
 			case RecurseSegment:
 				stack = append(stack, searchPendingData{path: item.path, depth: item.depth + 1, recurse: true})
+
 			case FilterSegment:
-				entries, err := os.ReadDir(item.path)
-				if err != nil {
-					ch <- MyGlobMatch{Err: err}
-					continue
-				}
 				var dirs []string
-				for _, entry := range entries {
+
+				// v1
+				// entries, err := os.ReadDir(item.path)
+				// if err != nil {
+				// 	ch <- MyGlobMatch{Err: err}
+				// 	continue
+				// }
+				// for _, entry := range entries {
+
+				// v2
+				for direntry := range readDirStream(item.path, false) {
+					if direntry.Err != nil {
+						ch <- MyGlobMatch{Err: direntry.Err}
+						continue
+					}
+					entry := direntry.Entry
+
 					fname := entry.Name()
 					if entry.IsDir() {
 						flnc := strings.ToLower(fname)

@@ -1,3 +1,8 @@
+// GFind, go version of Search/find/XFind/RFind utility
+//
+// 2025-07-12 	PV 		First version
+// 2025-07-13 	PV 		1.1.0 Option -nop
+
 // go mod edit -replace github.com/PieVio/MyMarkup=../../Packages/MyMarkup
 // go mod tidy
 
@@ -16,7 +21,7 @@ import (
 
 const (
 	APP_NAME        = "gfind"
-	APP_VERSION     = "1.0.0"
+	APP_VERSION     = "1.1.0"
 	APP_DESCRIPTION = "Searching files in Go"
 )
 
@@ -90,6 +95,9 @@ func main() {
 			} else {
 				actions = append(actions, &action_print{detailed_output: false})
 			}
+
+		case "nop":
+			// Do nothing
 
 		case "dir":
 			actions = append(actions, &action_print{detailed_output: true})

@@ -1,6 +1,7 @@
 // gfind options
 
 // 2025-07-12 	PV 		First version
+// 2025-07-13 	PV 		Option -nop
 
 package main
 
@@ -53,6 +54,7 @@ func usage() {
 ⌊Actions⌋:
 ⦃-print⦄           ¬Default, print matching files names and dir names
 ⦃-dir⦄             ¬Variant of ⦃-print⦄, with last modification date and size
+⦃-nop[rint]⦄       ¬Do nothing, useful to replace default action ⦃-print⦄ to count files and folders with option ⦃-v⦄
 ⦃-delete⦄          ¬Delete matching files
 ⦃-rmdir⦄           ¬Delete matching directories, whether empty or not`
 
@@ -142,6 +144,8 @@ func NewOptions() (*Options, error) {
 				opt.actions_names = map[string]bool{"print": true}
 			case "dir":
 				opt.actions_names = map[string]bool{"dir": true}
+			case "nop", "noprint":
+				opt.actions_names = map[string]bool{"nop": true}
 			case "rm", "del", "delete":
 				opt.actions_names = map[string]bool{"delete": true}
 			case "rd", "rmdir":
