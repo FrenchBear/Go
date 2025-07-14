@@ -46,7 +46,7 @@ func usage() {
 ⦃-f⦄|⦃-type f⦄       ¬Search for files
 ⦃-d⦄|⦃-type d⦄       ¬Search for directories
 ⦃-e⦄|⦃-empty⦄        ¬Only find empty files or directories
-⦃-r+⦄|⦃-r-⦄          ¬Delete to recycle bin (default) or delete forever; Recycle bin is not allowed on network sources
+⦃-r+⦄|⦃-r-⦄          ¬Delete to recycle bin or delete forever (default); Recycle bin is not allowed on network sources. Not currently in this Go version.
 ⦃-a+⦄|⦃-a-⦄          ¬Enable (default) or disable glob autorecurse mode (see extended usage)
 ⦃-name⦄ ⟨name⟩       ¬Append ⟦**/⟧⟨name⟩ to each source directory (compatibility with XFind/Search)
 ⟨source⟩           ¬File or directory to search
@@ -83,7 +83,7 @@ func extendedUsage() {
 }
 
 func NewOptions() (*Options, error) {
-	opt := Options{autorecurse: true, recycle: true}
+	opt := Options{autorecurse: true, recycle: false}
 
 	for i := 1; i < len(os.Args); i++ {
 		arg := os.Args[i]
@@ -167,6 +167,10 @@ func NewOptions() (*Options, error) {
 				opt.sources = append(opt.sources, arg)
 			}
 		}
+	}
+
+	if opt.recycle {
+		return nil, fmt.Errorf("Sorry, recycle option is not currently supported on this Go version.")
 	}
 
 	// If neither filtering files or dirs has been requested, then we search for both
