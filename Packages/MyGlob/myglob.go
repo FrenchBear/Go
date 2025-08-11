@@ -3,6 +3,7 @@
 //
 // 2025-07-01	PV 		Converted from Rust by Gemini
 // 2025-07-12	PV 		1.1.0 Accepts tapperns ending with / or \, and special case for "?:\"
+// 2025-08-11	PV 		1.2.0 Use getRoot function to separate constant root prefix from segments
 
 // ToDo:
 // - Update reference to https://docs.rs/regex/latest/regex/#character-classes
@@ -117,55 +118,53 @@ func (b *MyGlobBuilder) Autorecurse(active bool) *MyGlobBuilder {
 	return b
 }
 
+// getRoot separates a constant root prefix from the rest of a glob pattern.
+// This is a direct translation of the provided Rust function's logic.
+func getRoot(globPattern string) (root, remainder string) {
+	glob := globPattern
+	// Instead of an error, treat an empty pattern as "*", similar to shell command behavior.
+	if glob == "" {
+		glob = "*"
+	}
+
+	// Find the end of the constant prefix, which is the position of the first glob metacharacter.
+	specialCharIdx := strings.IndexAny(glob, "*?[{")
+
+	// Case 1: The pattern contains no special characters.
+	// The entire string is the root, and there is no remainder.
+	if specialCharIdx == -1 {
+		return glob, ""
+	}
+
+	// Case 2: The pattern contains special characters.
+	// We search for a path separator only within the constant part of the pattern.
+	prefix := glob[:specialCharIdx]
+	lastSeparatorIdx := strings.LastIndexAny(prefix, "/\\")
+
+	if lastSeparatorIdx == -1 {
+		// No path separator was found in the constant prefix.
+		// The root is the current directory ".", and the remainder is the entire pattern.
+		root = "."
+		remainder = glob
+	} else {
+		// A path separator was found.
+		// The root is everything up to and including that last separator.
+		cutPoint := lastSeparatorIdx + 1
+		root = glob[:cutPoint]
+		remainder = glob[cutPoint:]
+	}
+
+	return root, remainder
+}
+
 // Compile builds a new MyGlobSearch from the builder.
 func (b *MyGlobBuilder) Compile() (*MyGlobSearch, error) {
-	if b.globPattern == "" {
-		return nil, MyGlobError{"Glob pattern can't be empty"}
-	}
-
-	// Don't complain if glob ends with a \, just remove it
-	b.globPattern = strings.TrimSuffix(b.globPattern, "\\")
-	b.globPattern = strings.TrimSuffix(b.globPattern, "/")
-
-	dirSep := string(os.PathSeparator)
-	glob := b.globPattern + dirSep
-
-	var cut, pos int
-	var root string
-
-	// Special case for windows, a pattern such as C:\ is considered as root, inluding final \,
-	// this final \ is not considered as a cut point
-	if len(glob) == 3 && glob[1] == ':' {
-		root = glob
-		cut = 3
-		pos = 4
-	} else {
-		for i, c := range glob {
-			if strings.ContainsRune("*?[{", c) {
-				break
-			}
-			if c == '/' || c == '\\' {
-				cut = i
-			}
-			pos = i + 1
-		}
-
-		root = glob[:cut]
-		if root == "" {
-			root = "."
-		}
-	}
+	root, rem := getRoot(b.globPattern)
 
 	var segments []Segment
 	var err error
-	if pos < len(glob) {
-		var globPart string
-		if cut == 0 {
-			globPart = glob
-		} else {
-			globPart = glob[cut+1:]
-		}
-		segments, err = globToSegments(globPart)
+	if rem!="" {
+		segments, err = globToSegments(rem)
 		if err != nil {
 			return nil, err
 		}
@@ -206,6 +205,13 @@ func (b *MyGlobBuilder) Compile() (*MyGlobSearch, error) {
 }
 
 func globToSegments(globPattern string) ([]Segment, error) {
+	// Make sure that pattern ends with path separator to simplyfy code
+	dirSep := string(os.PathSeparator)
+	if !strings.HasSuffix(globPattern, "/") && !strings.HasSuffix(globPattern, "\\") {
+		// If not, append the OS-specific separator.
+		globPattern += dirSep
+	}
+
 	var segments []Segment
 	regexBuffer := ""
 	constantBuffer := ""

@@ -3,6 +3,7 @@
 //
 // 2025-07-01	PV 		Converted from Rust by Gemini
 // 2025-07-13   PV      Tests with chinese characters
+// 2025-08-11   PV      Added getRoot tests
 
 package MyGlob
 
@@ -221,4 +222,39 @@ func TestSearchErrors(t *testing.T) {
 				t.Error("Expected error for invalid regex, got nil")
 			}
 		})
+}
+
+// -----------------------------------------------------------------------------
+// Tests for getRoot
+
+func TestGetRoot(t *testing.T) {
+    tgr(t, "", ".", "*");
+    tgr(t, "*", ".", "*");
+    tgr(t, "C:", "C:", "");
+    tgr(t, "C:\\", "C:\\", "");
+    tgr(t, "file.ext", "file.ext", "");
+    tgr(t, "C:file.ext", "C:file.ext", "");
+    tgr(t, "C:\\file.ext", "C:\\file.ext", "");
+    tgr(t, "path\\file.ext", "path\\file.ext", "");
+    tgr(t, "path\\*.jpg", "path\\", "*.jpg");
+    tgr(t, "path\\**\\*.jpg", "path\\", "**\\*.jpg");
+    tgr(t, "C:path\\file.ext", "C:path\\file.ext", "");
+    tgr(t, "C:\\path\\file.ext", "C:\\path\\file.ext", "");
+    tgr(t, "\\\\server\\share", "\\\\server\\share", "");
+    tgr(t, "\\\\server\\share\\", "\\\\server\\share\\", "");
+    tgr(t, "\\\\server\\share\\file.txt", "\\\\server\\share\\file.txt", "");
+    tgr(t, "\\\\server\\share\\path\\file.txt", "\\\\server\\share\\path\\file.txt", "");
+    tgr(t, "\\\\server\\share\\*.jpg", "\\\\server\\share\\", "*.jpg");
+    tgr(t, "\\\\server\\share\\path\\*.jpg", "\\\\server\\share\\path\\", "*.jpg");
+    tgr(t, "\\\\server\\share\\**\\*.jpg", "\\\\server\\share\\", "**\\*.jpg");
+}
+
+func tgr(t *testing.T, pat, root, rem string) {
+	r, s := getRoot(pat)	
+	if r != root {
+		t.Errorf("Pattern %s: Expected root %s, got %s", pat, root, r)
+	}
+	if s != rem {
+		t.Errorf("Pattern: %s, Expected remainder %s, got %s", pat, rem, s)
+	}
 }
