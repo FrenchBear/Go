@@ -1,8 +1,8 @@
 // Gwc tool, prints text type for text files
 // Translation of Rwc utility
 //
-// 2022-07-10 	PV 		First version
-// 2022-07-11 	PV 		1.1 Parallel version of ProcessText
+// 2025-07-10 	PV 		First version
+// 2025-07-11 	PV 		1.1 Parallel version of ProcessText
 
 /* Before parallelism, on WOTAN:
 
