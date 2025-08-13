@@ -6,6 +6,7 @@ require (
 	github.com/PieVio/MyGlob v0.0.0-00010101000000-000000000000
 	github.com/PieVio/MyMarkup v0.0.0-00010101000000-000000000000
 	github.com/PieVio/TextAutoDecode v0.0.0-00010101000000-000000000000
+	github.com/mattn/go-isatty v0.0.20
 )
 
 require (

@@ -1,4 +1,4 @@
-// GGrep tool, Go version og grep
+// GGrep tool, Go version of grep
 //
 // 2025-08-130 	PV 		First version
 
@@ -13,6 +13,7 @@ import (
 
 	"github.com/PieVio/MyGlob"
 	"github.com/PieVio/TextAutoDecode"
+	"github.com/mattn/go-isatty"
 )
 
 const (
@@ -44,9 +45,9 @@ func main() {
 
 	start := time.Now()
 
-    // Building list of files
-    // It could be better to process file just when it's returned by iterator rather than stored in a Vec and processed
-    // later... but then we don't know when processing the first file whether there's more than one, to print paths...
+	// Building list of files
+	// It could be better to process file just when it's returned by iterator rather than stored in a Vec and processed
+	// later... but then we don't know when processing the first file whether there's more than one, to print paths...
 	files := []string{}
 	for _, source := range options.Sources {
 		gs, err := MyGlob.New(source).Autorecurse(options.Autorecurse).Compile()
@@ -169,28 +170,52 @@ func processPath(b *DataBag, re *regexp.Regexp, path string, options *Options) {
 
 func processText(b *DataBag, re *regexp.Regexp, txt, path string, options *Options) {
 	matchlinecount := 0
-	for gi := range Grep(txt, re) {
-		matchlinecount++
 
-		// ToDo: add colored output
-		if options.OutLevel == 1 {
-			fmt.Printf("%s\n", path)
-			return
-		}
+	if isatty.IsTerminal(os.Stdout.Fd()) {
+		// tty output in color
+		const BrightBlack string = "\033[90m"
+		const BoldRed string = "\033[1;31m"
+		const NormalColor string = "\033[0;37m"
 
-		if options.OutLevel == 0 {
-			if options.ShowPath {
-				fmt.Printf("%s: ", path)
+		for gi := range Grep(txt, re) {
+			matchlinecount++
+
+			if options.OutLevel == 1 {
+				fmt.Printf("%s\n", path)
+				return
 			}
-			p := 0
-			for _, ma := range gi.Ranges {
-				if ma.Start < len(gi.Line) {
-					e := ma.End
-					fmt.Printf("%s«%s»", gi.Line[p:ma.Start], gi.Line[ma.Start:ma.End])
-					p = e
+
+			if options.OutLevel == 0 {
+				if options.ShowPath {
+					fmt.Printf("%s%s:%s ", BrightBlack, path, NormalColor)
 				}
+				p := 0
+				for _, ma := range gi.Ranges {
+					if ma.Start < len(gi.Line) {
+						e := ma.End
+						fmt.Printf("%s%s%s%s", gi.Line[p:ma.Start], BoldRed, gi.Line[ma.Start:ma.End], NormalColor)
+						p = e
+					}
+				}
+				fmt.Println(gi.Line[p:])
 			}
-			fmt.Println(gi.Line[p:])
+		}
+	} else {
+		// Not a tty, monochrome output
+		for gi := range Grep(txt, re) {
+			matchlinecount++
+
+			if options.OutLevel == 1 {
+				fmt.Printf("%s\n", path)
+				return
+			}
+
+			if options.OutLevel == 0 {
+				if options.ShowPath {
+					fmt.Printf("%s: ", path)
+				}
+				fmt.Println(gi.Line)
+			}
 		}
 	}
 

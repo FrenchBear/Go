@@ -1,5 +1,6 @@
 // grepiterator.go
 // Iterates over lines of a text matching some pattern
+// Returns a GrepLineMatches object for each line with at least a match, containing all matches of the line
 //
 // 2025-08-13   PV (converted from Rust by Gemini)
 
