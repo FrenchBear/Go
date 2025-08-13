@@ -93,17 +93,21 @@ func (ctx *action_delete) action(path string, info os.FileInfo, noAction bool, v
 			fmt.Println("DEL", qp)
 			if !noAction {
 				err := os.Remove(path)
-				if err==nil {
-					fmt.Println("File", qp, "deleted successfully.")
-				} else {
+				if err!=nil {
 					fmt.Println("*** Error deleting file", qp, ":", err)
+				} else if verbose {
+					fmt.Println("File", qp, "deleted successfully.")
 				}
-
 			}
 		} else {
 			fmt.Println("RECYCLE", qp)
 			if !noAction {
-				fmt.Println("-> Recycle bin not implemented in this Go version.")
+				err := recycleFile(path)
+				if err!=nil {
+					fmt.Println("*** Error recycling file", qp, ":", err)
+				} else if verbose {
+					fmt.Println("File", qp, "recycled successfully.")
+				}
 			}
 		}
 	}
@@ -139,17 +143,21 @@ func (ctx *action_rmdir) action(path string, info os.FileInfo, noAction bool, ve
 			fmt.Println("RS /S", qp)
 			if !noAction {
 				err := os.RemoveAll(path)
-				if err==nil {
-					fmt.Println("Dir", qp, "deleted successfully.")
-				} else {
+				if err!=nil {
 					fmt.Println("*** Error deleting dir", qp, ":", err)
+				} else if verbose {
+					fmt.Println("Dir", qp, "deleted successfully.")
 				}
-
 			}
 		} else {
 			fmt.Println("RECYCLE (dir)", qp)
 			if !noAction {
-				fmt.Println("-> Recycle bin not implemented in this Go version.")
+				err := recycleFile(path)
+				if err!=nil {
+					fmt.Println("*** Error recycling dir", qp, ":", err)
+				} else if verbose {
+					fmt.Println("Dir", qp, "recycled successfully.")
+				}
 			}
 		}
 	}
