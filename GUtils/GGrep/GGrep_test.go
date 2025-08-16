@@ -15,7 +15,6 @@ func assert_eq[T comparable](t *testing.T, a, b T) {
 	}
 }
 
-
 func TestGrepIterator(t *testing.T) {
 	text := `Go is a statically typed, compiled programming language designed at Google.
 Its syntax is loosely based on C, but with memory safety, garbage collection,
@@ -28,7 +27,7 @@ Final line without the word.`
 
 	ch := Grep(text, re)
 
-	lm := <- ch
+	lm := <-ch
 	assert_eq(t, lm.Line, "Go is a statically typed, compiled programming language designed at Google.")
 	assert_eq(t, len(lm.Ranges), 2)
 	assert_eq(t, lm.Ranges[0].Start, 0)
@@ -36,13 +35,13 @@ Final line without the word.`
 	assert_eq(t, lm.Ranges[1].Start, 68)
 	assert_eq(t, lm.Ranges[1].End, 70)
 
-	lm = <- ch
+	lm = <-ch
 	assert_eq(t, lm.Line, "structural typing, and CSP-style concurrency. The language is often referred to as Golang.")
 	assert_eq(t, len(lm.Ranges), 1)
 	assert_eq(t, lm.Ranges[0].Start, 83)
 	assert_eq(t, lm.Ranges[0].End, 85)
 
-	lm = <- ch
+	lm = <-ch
 	assert_eq(t, lm.Line, "This is another line about go or GO or even gO.")
 	assert_eq(t, len(lm.Ranges), 3)
 	assert_eq(t, lm.Ranges[0].Start, 27)

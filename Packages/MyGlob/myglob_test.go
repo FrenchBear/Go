@@ -105,8 +105,8 @@ func globOneSegmentTest(t *testing.T, globPattern, testString string, isMatch bo
 			t.Errorf("Recurse match failed for %s with %s", globPattern, testString)
 		}
 	case FilterSegment:
-		if s.Regex.MatchString(testString) != isMatch {
-			t.Errorf("Filter match failed for %s with %s (regex: %s)", globPattern, testString, s.Regex.String())
+		if s.Regexp.MatchString(testString) != isMatch {
+			t.Errorf("Filter match failed for %s with %s (regex: %s)", globPattern, testString, s.Regexp.String())
 		}
 	}
 }
@@ -179,7 +179,7 @@ func TestSearch(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			builder := New(tt.glob).Autorecurse(tt.autorecurse)
+			builder := New(tt.glob).Autorecurse(tt.autorecurse).SetChannelSize(10)
 			for _, ignore := range tt.ignore {
 				builder.AddIgnoreDir(ignore)
 			}

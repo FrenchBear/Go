@@ -4,11 +4,7 @@
 // 2025-07-01	PV 		Converted from Rust by Gemini
 // 2025-07-12	PV 		1.1.0 Accepts tapperns ending with / or \, and special case for "?:\"
 // 2025-08-11	PV 		1.2.0 Use getRoot function to separate constant root prefix from segments
-
-// ToDo:
-// - Update reference to https://docs.rs/regex/latest/regex/#character-classes
-// - Check Go regexp possibilities
-// - In Go, it's regexp, not regex!
+// 2025-08-18	PV 		1.3.0 SetChannelSize method
 
 package MyGlob
 
@@ -21,7 +17,7 @@ import (
 )
 
 const (
-	LIB_VERSION = "1.1.0"
+	LIB_VERSION = "1.3.0"
 )
 
 // Segment is an interface for a segment of a glob pattern.
@@ -41,26 +37,28 @@ type RecurseSegment struct{}
 
 func (r RecurseSegment) isSegment() {}
 
-// FilterSegment is a glob filter segment, converted into a Regex.
+// FilterSegment is a glob filter segment, converted into a Regexp.
 type FilterSegment struct {
-	Regex *regexp.Regexp
+	Regexp *regexp.Regexp
 }
 
 func (f FilterSegment) isSegment() {}
 
 // MyGlobSearch is the main struct of MyGlob.
 type MyGlobSearch struct {
-	root       string
-	segments   []Segment
-	ignoreDirs []string
-	isConstant bool
+	root        string
+	segments    []Segment
+	ignoreDirs  []string
+	isConstant  bool
+	channelSize int
 }
 
 // MyGlobBuilder is used to build a MyGlobSearch object.
 type MyGlobBuilder struct {
 	globPattern string
 	ignoreDirs  []string
-	autorecurse bool
+	autoRecurse bool
+	channelSize int
 }
 
 // MyGlobError represents an error returned by MyGlob.
@@ -87,7 +85,7 @@ func GlobSyntax() string {
 - ¬⟦[!...]⟧ is the negation of ⟦[...]⟧, it matches any characters not in the brackets.
 - ¬The metacharacters ⟦?⟧, ⟦*⟧, ⟦[⟧, ⟦]⟧ can be matched by escaping them between brackets such as ⟦[\?]⟧ or ⟦[\[]⟧. When a ⟦]⟧ occurs immediately following ⟦[⟧ or ⟦[!⟧ then it is interpreted as being part of, rather than ending the character set, so ⟦]⟧ and NOT ⟦]⟧ can be matched by ⟦[]]⟧ and ⟦[!]]⟧ respectively. The ⟦-⟧ character can be specified inside a character sequence pattern by placing it at the start or the end, e.g. ⟦[abc-]⟧.
 - ¬⟦{choice1,choice2...}⟧  match any of the comma-separated choices between braces. Can be nested, and include ⟦?⟧, ⟦*⟧ and character classes.
-- ¬Character classes ⟦[ ]⟧ accept regex syntax such as ⟦[\d]⟧ to match a single digit, see https://docs.rs/regex/latest/regex/#character-classes for character classes and escape sequences supported.
+- ¬Character classes ⟦[ ]⟧ accept regexp syntax such as ⟦[\d]⟧ to match a single digit, see https://pkg.go.dev/regexp/syntax for character classes and escape sequences supported.
 
 ⌊Autorecurse glob pattern transformation⌋:
 - ¬⟪Constant pattern⟫ (no filter, no ⟦**⟧) pointing to a directory: ⟦/**/*⟧ is appended at the end to search all files of all subdirectories.
@@ -103,6 +101,7 @@ func New(globPattern string) *MyGlobBuilder {
 			"system volume information",
 			".git",
 		},
+		channelSize: 1, // Default buffer size
 	}
 }
 
@@ -114,7 +113,16 @@ func (b *MyGlobBuilder) AddIgnoreDir(dir string) *MyGlobBuilder {
 
 // Autorecurse sets the autorecurse flag.
 func (b *MyGlobBuilder) Autorecurse(active bool) *MyGlobBuilder {
-	b.autorecurse = active
+	b.autoRecurse = active
+	return b
+}
+
+// Autorecurse sets the autorecurse flag.
+func (b *MyGlobBuilder) SetChannelSize(size int) *MyGlobBuilder {
+	if size <= 0 {
+		size = 1 // Default buffer size
+	}
+	b.channelSize = size
 	return b
 }
 
@@ -163,14 +171,14 @@ func (b *MyGlobBuilder) Compile() (*MyGlobSearch, error) {
 
 	var segments []Segment
 	var err error
-	if rem!="" {
+	if rem != "" {
 		segments, err = globToSegments(rem)
 		if err != nil {
 			return nil, err
 		}
 	}
 
-	if b.autorecurse {
+	if b.autoRecurse {
 		if len(segments) == 0 {
 			if fi, err := os.Stat(root); err == nil && fi.IsDir() {
 				segments = append(segments, RecurseSegment{})
@@ -197,10 +205,11 @@ func (b *MyGlobBuilder) Compile() (*MyGlobSearch, error) {
 	}
 
 	return &MyGlobSearch{
-		root:       root,
-		segments:   segments,
-		ignoreDirs: b.ignoreDirs,
-		isConstant: len(segments) == 0,
+		root:        root,
+		segments:    segments,
+		ignoreDirs:  b.ignoreDirs,
+		isConstant:  len(segments) == 0,
+		channelSize: b.channelSize,
 	}, nil
 }
 
@@ -329,7 +338,7 @@ type MyGlobMatch struct {
 
 // Explore returns a channel of matches.
 func (gs *MyGlobSearch) Explore() <-chan MyGlobMatch {
-	ch := make(chan MyGlobMatch)
+	ch := make(chan MyGlobMatch, gs.channelSize)
 	go func() {
 		defer close(ch)
 		var stack []searchPendingData
@@ -441,7 +450,7 @@ func (gs *MyGlobSearch) Explore() <-chan MyGlobMatch {
 							}
 						}
 						if !isIgnored {
-							if s.Regex.MatchString(fname) {
+							if s.Regexp.MatchString(fname) {
 								newPath := filepath.Join(item.path, fname)
 								if item.depth == len(gs.segments)-1 {
 									ch <- MyGlobMatch{Path: newPath, IsDir: true}
@@ -452,7 +461,7 @@ func (gs *MyGlobSearch) Explore() <-chan MyGlobMatch {
 							dirs = append(dirs, filepath.Join(item.path, fname))
 						}
 					} else {
-						if item.depth == len(gs.segments)-1 && s.Regex.MatchString(fname) {
+						if item.depth == len(gs.segments)-1 && s.Regexp.MatchString(fname) {
 							ch <- MyGlobMatch{Path: filepath.Join(item.path, fname)}
 						}
 					}

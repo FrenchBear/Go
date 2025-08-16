@@ -1,6 +1,7 @@
 // GGrep tool, Go version of grep
 //
-// 2025-08-130 	PV 		First version
+// 2025-08-13 	PV 		First version
+// 2025-08-18	PV 		1.1 Process files while enumerating; use MyGlob.SetChannelSize(25) to speed up globbing
 
 package main
 
@@ -18,7 +19,7 @@ import (
 
 const (
 	APP_NAME        = "ggrep"
-	APP_VERSION     = "1.0.0"
+	APP_VERSION     = "1.1.0"
 	APP_DESCRIPTION = "Grep utility in Go"
 )
 
@@ -45,12 +46,12 @@ func main() {
 
 	start := time.Now()
 
-	// Building list of files
-	// It could be better to process file just when it's returned by iterator rather than stored in a Vec and processed
-	// later... but then we don't know when processing the first file whether there's more than one, to print paths...
-	files := []string{}
+	// Need to wait for 2nd file to call processPath, since if there is a 2nd file, we set options.ShowPath to true
+	// to show filename before matches.  file_to_process is the file from the previous loop
+	file_to_process := ""
+	b := DataBag{}
 	for _, source := range options.Sources {
-		gs, err := MyGlob.New(source).Autorecurse(options.Autorecurse).Compile()
+		gs, err := MyGlob.New(source).Autorecurse(options.Autorecurse).SetChannelSize(25).Compile()
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "%s: Error building MyGlob: %v\n", APP_NAME, err)
 			continue
@@ -64,25 +65,24 @@ func main() {
 				continue
 			}
 			if !ma.IsDir { // We ignore matching directories in rgrep, we only look for files
-				//processPath(&b, re, ma.Path, options)
-				files = append(files, ma.Path)
+				// We've met out second file!
+				if file_to_process != "" {
+					options.ShowPath = true
+					processPath(&b, re, file_to_process, options)
+				}
+				file_to_process = ma.Path
 			}
 		}
 	}
+	if file_to_process != "" {
+		processPath(&b, re, file_to_process, options)
+	}
 
 	// If no source has been provided, use stdin
-	b := DataBag{}
 	if len(options.Sources) == 0 {
 		err := processStdin(&b, re, options)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "%s: Error reading from stdin: %v\n", APP_NAME, err)
-		}
-	} else {
-		if len(files) > 1 {
-			options.ShowPath = true
-		}
-		for _, path := range files {
-			processPath(&b, re, path, options)
 		}
 	}
 
