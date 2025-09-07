@@ -5,6 +5,7 @@
 // 2025-07-12	PV 		1.1.0 Accepts tapperns ending with / or \, and special case for "?:\"
 // 2025-08-11	PV 		1.2.0 Use getRoot function to separate constant root prefix from segments
 // 2025-08-18	PV 		1.3.0 SetChannelSize method
+// 2025-09-07	PV 		1.4.0 MaxDepth; IsConstant removed
 
 package MyGlob
 
@@ -17,7 +18,7 @@ import (
 )
 
 const (
-	LIB_VERSION = "1.3.0"
+	LIB_VERSION = "1.4.0"
 )
 
 // Segment is an interface for a segment of a glob pattern.
@@ -46,10 +47,11 @@ func (f FilterSegment) isSegment() {}
 
 // MyGlobSearch is the main struct of MyGlob.
 type MyGlobSearch struct {
-	root        string
-	segments    []Segment
-	ignoreDirs  []string
-	isConstant  bool
+	root       string
+	segments   []Segment
+	ignoreDirs []string
+	maxDepth   int
+	//	isConstant  bool
 	channelSize int
 }
 
@@ -57,6 +59,7 @@ type MyGlobSearch struct {
 type MyGlobBuilder struct {
 	globPattern string
 	ignoreDirs  []string
+	maxDepth    int
 	autoRecurse bool
 	channelSize int
 }
@@ -111,6 +114,12 @@ func (b *MyGlobBuilder) AddIgnoreDir(dir string) *MyGlobBuilder {
 	return b
 }
 
+// Set maxdepth, counted from ** segment, 0 means no limit (default)
+func (b *MyGlobBuilder) MaxDepth(depth int) *MyGlobBuilder {
+	b.maxDepth = depth
+	return b
+}
+
 // Autorecurse sets the autorecurse flag.
 func (b *MyGlobBuilder) Autorecurse(active bool) *MyGlobBuilder {
 	b.autoRecurse = active
@@ -118,7 +127,7 @@ func (b *MyGlobBuilder) Autorecurse(active bool) *MyGlobBuilder {
 }
 
 // Autorecurse sets the autorecurse flag.
-func (b *MyGlobBuilder) SetChannelSize(size int) *MyGlobBuilder {
+func (b *MyGlobBuilder) ChannelSize(size int) *MyGlobBuilder {
 	if size <= 0 {
 		size = 1 // Default buffer size
 	}
@@ -205,10 +214,11 @@ func (b *MyGlobBuilder) Compile() (*MyGlobSearch, error) {
 	}
 
 	return &MyGlobSearch{
-		root:        root,
-		segments:    segments,
-		ignoreDirs:  b.ignoreDirs,
-		isConstant:  len(segments) == 0,
+		root:       root,
+		segments:   segments,
+		ignoreDirs: b.ignoreDirs,
+		maxDepth:   b.maxDepth,
+		//		isConstant:  len(segments) == 0,
 		channelSize: b.channelSize,
 	}, nil
 }
@@ -336,12 +346,19 @@ type MyGlobMatch struct {
 	IsDir bool
 }
 
+type searchPendingData struct {
+	path          string
+	depth         int
+	recurse       bool
+	recurse_depth int
+}
+
 // Explore returns a channel of matches.
 func (gs *MyGlobSearch) Explore() <-chan MyGlobMatch {
 	ch := make(chan MyGlobMatch, gs.channelSize)
 	go func() {
 		defer close(ch)
-		var stack []searchPendingData
+
 		if len(gs.segments) == 0 {
 			fi, err := os.Stat(gs.root)
 			if err != nil {
@@ -356,6 +373,7 @@ func (gs *MyGlobSearch) Explore() <-chan MyGlobMatch {
 			return
 		}
 
+		var stack []searchPendingData
 		stack = append(stack, searchPendingData{path: gs.root, depth: 0})
 		for len(stack) > 0 {
 			item := stack[len(stack)-1]
@@ -383,16 +401,7 @@ func (gs *MyGlobSearch) Explore() <-chan MyGlobMatch {
 						}
 					}
 				}
-				if item.recurse {
-					// v2
-					// entries, err := os.ReadDir(item.path)
-					// if err != nil {
-					// 	ch <- MyGlobMatch{Err: err}
-					// 	continue
-					// }
-					// for _, entry := range entries {
-
-					// v2
+				if item.recurse && (gs.maxDepth == 0 || item.recurse_depth < gs.maxDepth) {
 					for direntry := range readDirStream(item.path, true) {
 						if direntry.Err != nil {
 							ch <- MyGlobMatch{Err: direntry.Err}
@@ -411,27 +420,17 @@ func (gs *MyGlobSearch) Explore() <-chan MyGlobMatch {
 								}
 							}
 							if !isIgnored {
-								stack = append(stack, searchPendingData{path: p, depth: item.depth, recurse: true})
+								stack = append(stack, searchPendingData{path: p, depth: item.depth, recurse: true, recurse_depth: item.recurse_depth + 1})
 							}
 						}
 					}
 				}
 
 			case RecurseSegment:
-				stack = append(stack, searchPendingData{path: item.path, depth: item.depth + 1, recurse: true})
+				stack = append(stack, searchPendingData{path: item.path, depth: item.depth + 1, recurse: true, recurse_depth: 0})
 
 			case FilterSegment:
 				var dirs []string
-
-				// v1
-				// entries, err := os.ReadDir(item.path)
-				// if err != nil {
-				// 	ch <- MyGlobMatch{Err: err}
-				// 	continue
-				// }
-				// for _, entry := range entries {
-
-				// v2
 				for direntry := range readDirStream(item.path, false) {
 					if direntry.Err != nil {
 						ch <- MyGlobMatch{Err: direntry.Err}
@@ -451,24 +450,26 @@ func (gs *MyGlobSearch) Explore() <-chan MyGlobMatch {
 						}
 						if !isIgnored {
 							if s.Regexp.MatchString(fname) {
-								newPath := filepath.Join(item.path, fname)
-								if item.depth == len(gs.segments)-1 {
-									ch <- MyGlobMatch{Path: newPath, IsDir: true}
-								} else {
-									stack = append(stack, searchPendingData{path: newPath, depth: item.depth + 1})
+								if gs.maxDepth == 0 || item.recurse_depth < gs.maxDepth {
+									newPath := filepath.Join(item.path, fname)
+									if item.depth == len(gs.segments)-1 {
+										ch <- MyGlobMatch{Path: newPath, IsDir: true}
+									} else {
+										stack = append(stack, searchPendingData{path: newPath, depth: item.depth + 1})
+									}
 								}
 							}
 							dirs = append(dirs, filepath.Join(item.path, fname))
 						}
-					} else {
+					} else {  // File
 						if item.depth == len(gs.segments)-1 && s.Regexp.MatchString(fname) {
 							ch <- MyGlobMatch{Path: filepath.Join(item.path, fname)}
 						}
 					}
 				}
-				if item.recurse {
+				if item.recurse && (gs.maxDepth==0 || item.recurse_depth < gs.maxDepth) {
 					for _, dir := range dirs {
-						stack = append(stack, searchPendingData{path: dir, depth: item.depth, recurse: true})
+						stack = append(stack, searchPendingData{path: dir, depth: item.depth, recurse: true, recurse_depth: item.recurse_depth + 1})
 					}
 				}
 			}
@@ -477,12 +478,7 @@ func (gs *MyGlobSearch) Explore() <-chan MyGlobMatch {
 	return ch
 }
 
-type searchPendingData struct {
-	path    string
-	depth   int
-	recurse bool
-}
 
-func (gs *MyGlobSearch) IsConstant() bool {
-	return gs.isConstant
-}
+// func (gs *MyGlobSearch) IsConstant() bool {
+// 	return gs.isConstant
+// }

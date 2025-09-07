@@ -5,6 +5,7 @@
 // go mod tidy
 //
 // 2025-06-23	PV		First version
+// 2025-09-07	PV		Test MaxDepth
 
 package main
 
@@ -19,16 +20,17 @@ import (
 func main() {
 	fmt.Printf("MyGlob lib version: %s\n\n", myglob.Version())
 
-	testMyglob(`C:\Development\*.*`, false, []string{"d2"}, 1)
+	//testMyglob(`C:\Development\*.*`, false, []string{"d2"}, 0, 1)
+	testMyglob(`S:\MaxDepth`, true, []string{}, 1, 1)
 }
 
-func testMyglob(pattern string, autorecurse bool, ignoreDirs []string, loops int) {
+func testMyglob(pattern string, autorecurse bool, ignoreDirs []string, maxDepth int, loops int) {
 	var durations []float64
 	for pass := 0; pass < loops; pass++ {
 		fmt.Printf("\nTest #%d\n", pass)
 
 		start := time.Now()
-		builder := myglob.New(pattern).Autorecurse(autorecurse)
+		builder := myglob.New(pattern).Autorecurse(autorecurse).MaxDepth(maxDepth)
 		for _, ignoreDir := range ignoreDirs {
 			builder.AddIgnoreDir(ignoreDir)
 		}

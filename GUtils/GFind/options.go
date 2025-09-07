@@ -2,12 +2,14 @@
 
 // 2025-07-12 	PV 		First version
 // 2025-07-13 	PV 		Option -nop
+// 2025-09-07 	PV 		Option -maxdepth
 
 package main
 
 import (
 	"fmt"
 	"os"
+	"strconv"
 	"strings"
 
 	"github.com/PieVio/MyGlob"
@@ -21,6 +23,7 @@ type Options struct {
 	search_files  bool
 	search_dirs   bool
 	names         []string
+	maxdepth      int
 	isempty       bool
 	recycle       bool
 	autorecurse   bool
@@ -36,7 +39,7 @@ func header() {
 func usage() {
 	header()
 	fmt.Println()
-	text := `⌊Usage⌋: {APP_NAME} ¬[⦃?⦄|⦃-?⦄|⦃-h⦄|⦃??⦄] [⦃-v⦄] [⦃-n⦄] [⦃-f⦄|⦃-type f⦄|⦃-d⦄|⦃-type d⦄] [⦃-e⦄|⦃-empty⦄] [⦃-r+⦄|⦃-r-⦄] [⦃-a+⦄|⦃-a-⦄] [⟨action⟩...] [⦃-name⦄ ⟨name⟩] ⟨source⟩...
+	text := `⌊Usage⌋: {APP_NAME} ¬[⦃?⦄|⦃-?⦄|⦃-h⦄|⦃??⦄] [⦃-v⦄] [⦃-n⦄] [⦃-f⦄|⦃-type f⦄|⦃-d⦄|⦃-type d⦄] [⦃-e⦄|⦃-empty⦄] [⦃-r+⦄|⦃-r-⦄] [⦃-a+⦄|⦃-a-⦄] [⟨action⟩...] [⦃-name⦄ ⟨name⟩] [⦃-maxdepth⦄ ⟨n⟩] ⟨source⟩...
 
 ⌊Options⌋:
 ⦃?⦄|⦃-?⦄|⦃-h⦄          ¬Show this message
@@ -46,16 +49,17 @@ func usage() {
 ⦃-f⦄|⦃-type f⦄       ¬Search for files
 ⦃-d⦄|⦃-type d⦄       ¬Search for directories
 ⦃-e⦄|⦃-empty⦄        ¬Only find empty files or directories
-⦃-r+⦄|⦃-r-⦄          ¬Delete to recycle bin or delete forever (default); Recycle bin is not allowed on network sources
+⦃-r+⦄|⦃-r-⦄          ¬Delete to recycle bin (default) or delete forever; Recycle bin is not allowed on network sources
 ⦃-a+⦄|⦃-a-⦄          ¬Enable (default) or disable glob autorecurse mode (see extended usage)
 ⦃-name⦄ ⟨name⟩       ¬Append ⟦**/⟧⟨name⟩ to each source directory (compatibility with XFind/Search)
+⦃-maxdepth⦄ ⟨n⟩      ¬Limit the recursion depth of ** segments, 1=One directory only, ... Default=0 is unlimited depth
 ⟨source⟩           ¬File or directory to search
 
 ⌊Actions⌋:
 ⦃-print⦄           ¬Default, print matching files names and dir names
 ⦃-dir⦄             ¬Variant of ⦃-print⦄, with last modification date and size
 ⦃-nop[rint]⦄       ¬Do nothing, useful to replace default action ⦃-print⦄ to count files and folders with option ⦃-v⦄
-⦃-delete⦄          ¬Delete matching files. ⚠ In this go version, all files are permanently deleted
+⦃-delete⦄          ¬Delete matching files
 ⦃-rmdir⦄           ¬Delete matching directories, whether empty or not`
 
 	MyMarkup.RenderMarkup(strings.ReplaceAll(text, "{APP_NAME}", APP_NAME))
@@ -121,11 +125,24 @@ func NewOptions() (*Options, error) {
 
 			case "name":
 				if i == len(os.Args)-1 {
-					return nil, fmt.Errorf("Option -type requires an argument f or d")
+					return nil, fmt.Errorf("Option -name requires an argument")
 				}
 				i++
 				argopt := os.Args[i]
 				opt.names = append(opt.names, argopt)
+
+			case "maxdepth":
+				if i == len(os.Args)-1 {
+					return nil, fmt.Errorf("Option -maxdepth requires an integer argument")
+				}
+				i++
+				argopt := os.Args[i]
+
+				maxdepth, err := strconv.Atoi(argopt)
+				if err != nil {
+					return nil, fmt.Errorf("Option -maxdepth requires an integer argument")
+				}
+				opt.maxdepth = maxdepth
 
 			case "e", "empty":
 				opt.isempty = true

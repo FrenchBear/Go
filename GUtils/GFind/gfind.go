@@ -3,6 +3,7 @@
 // 2025-07-12 	PV 		First version
 // 2025-07-13 	PV 		1.1.0 Option -nop
 // 2025-08-13 	PV 		1.2.0 Support for Windows Recycle Bin
+// 2025-09-07 	PV 		1.3.0 Option -maxdepth
 
 // go mod edit -replace github.com/PieVio/MyMarkup=../../Packages/MyMarkup
 // go mod tidy
@@ -22,7 +23,7 @@ import (
 
 const (
 	APP_NAME        = "gfind"
-	APP_VERSION     = "1.2.0"
+	APP_VERSION     = "1.3.0"
 	APP_DESCRIPTION = "Searching files in Go"
 )
 
@@ -59,7 +60,7 @@ func main() {
 	// Convert String sources into MyGlobSearch structs
 	sources := make([]*MyGlob.MyGlobSearch, len(options.sources))
 	for i, source := range options.sources {
-		mg, err := MyGlob.New(source).Autorecurse(options.autorecurse).Compile()
+		mg, err := MyGlob.New(source).Autorecurse(options.autorecurse).MaxDepth(options.maxdepth).Compile()
 		if err != nil {
 			fmt.Printf("*** Error building MyGlob: %v\n", err)
 			continue
@@ -213,16 +214,3 @@ func IsDirEmpty(path string) bool {
 	// Otherwise, the directory is not empty.
 	return false
 }
-
-/*
-// Since Go doesn't contain the bare minimum functionality...
-// contains checks if a string is present in a slice of strings.
-func contains(slice []string, str string) bool {
-	for _, item := range slice {
-		if item == str {
-			return true
-		}
-	}
-	return false
-}
-*/
