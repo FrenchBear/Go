@@ -6,10 +6,12 @@
 // 2025-08-11	PV 		1.2.0 Use getRoot function to separate constant root prefix from segments
 // 2025-08-18	PV 		1.3.0 SetChannelSize method
 // 2025-09-07	PV 		1.4.0 MaxDepth; IsConstant removed
+// 2025-09-08	PV 		1.5.0 Replaced stack by a queue for more natural output order
 
 package MyGlob
 
 import (
+	"container/list"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -18,7 +20,7 @@ import (
 )
 
 const (
-	LIB_VERSION = "1.4.0"
+	LIB_VERSION = "1.5.0"
 )
 
 // Segment is an interface for a segment of a glob pattern.
@@ -373,11 +375,13 @@ func (gs *MyGlobSearch) Explore() <-chan MyGlobMatch {
 			return
 		}
 
-		var stack []searchPendingData
-		stack = append(stack, searchPendingData{path: gs.root, depth: 0})
-		for len(stack) > 0 {
-			item := stack[len(stack)-1]
-			stack = stack[:len(stack)-1]
+		queue := list.New()
+		queue.PushBack(searchPendingData{path: gs.root, depth: 0})
+		for queue.Len() > 0 {
+			item := queue.Front().Value.(searchPendingData)
+			queue.Remove(queue.Front())		// Need to call remove, there is no PopFront
+			// It's a O(1) operation since queue is actially a dequeue. Remove takes an element pointer, so it just
+			// needs to update next/previous pointers of previous/next elements
 
 			if item.depth >= len(gs.segments) {
 				continue
@@ -397,7 +401,7 @@ func (gs *MyGlobSearch) Explore() <-chan MyGlobMatch {
 						}
 					} else {
 						if fi.IsDir() {
-							stack = append(stack, searchPendingData{path: newPath, depth: item.depth + 1})
+							queue.PushBack(searchPendingData{path: newPath, depth: item.depth + 1})
 						}
 					}
 				}
@@ -420,14 +424,14 @@ func (gs *MyGlobSearch) Explore() <-chan MyGlobMatch {
 								}
 							}
 							if !isIgnored {
-								stack = append(stack, searchPendingData{path: p, depth: item.depth, recurse: true, recurse_depth: item.recurse_depth + 1})
+								queue.PushBack(searchPendingData{path: p, depth: item.depth, recurse: true, recurse_depth: item.recurse_depth + 1})
 							}
 						}
 					}
 				}
 
 			case RecurseSegment:
-				stack = append(stack, searchPendingData{path: item.path, depth: item.depth + 1, recurse: true, recurse_depth: 0})
+				queue.PushBack(searchPendingData{path: item.path, depth: item.depth + 1, recurse: true, recurse_depth: 0})
 
 			case FilterSegment:
 				var dirs []string
@@ -455,7 +459,7 @@ func (gs *MyGlobSearch) Explore() <-chan MyGlobMatch {
 									if item.depth == len(gs.segments)-1 {
 										ch <- MyGlobMatch{Path: newPath, IsDir: true}
 									} else {
-										stack = append(stack, searchPendingData{path: newPath, depth: item.depth + 1})
+										queue.PushBack(searchPendingData{path: newPath, depth: item.depth + 1})
 									}
 								}
 							}
@@ -469,7 +473,7 @@ func (gs *MyGlobSearch) Explore() <-chan MyGlobMatch {
 				}
 				if item.recurse && (gs.maxDepth==0 || item.recurse_depth < gs.maxDepth) {
 					for _, dir := range dirs {
-						stack = append(stack, searchPendingData{path: dir, depth: item.depth, recurse: true, recurse_depth: item.recurse_depth + 1})
+						queue.PushBack(searchPendingData{path: dir, depth: item.depth, recurse: true, recurse_depth: item.recurse_depth + 1})
 					}
 				}
 			}

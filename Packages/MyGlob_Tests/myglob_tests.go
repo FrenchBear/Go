@@ -21,7 +21,8 @@ func main() {
 	fmt.Printf("MyGlob lib version: %s\n\n", myglob.Version())
 
 	//testMyglob(`C:\Development\*.*`, false, []string{"d2"}, 0, 1)
-	testMyglob(`S:\MaxDepth`, true, []string{}, 1, 1)
+	//testMyglob(`S:\MaxDepth`, true, []string{}, 1, 1)
+	testMyglob(`C:\Development\GitVSTS\DevForFun`, true, []string{}, 2, 1)
 }
 
 func testMyglob(pattern string, autorecurse bool, ignoreDirs []string, maxDepth int, loops int) {

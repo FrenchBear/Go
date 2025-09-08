@@ -4,6 +4,7 @@
 // 2025-07-13 	PV 		1.1.0 Option -nop
 // 2025-08-13 	PV 		1.2.0 Support for Windows Recycle Bin
 // 2025-09-07 	PV 		1.3.0 Option -maxdepth
+// 2025-09-08 	PV 		1.3.1 Use MyGlob 1.5 with a queue instead of a stack for a more logical output order
 
 // go mod edit -replace github.com/PieVio/MyMarkup=../../Packages/MyMarkup
 // go mod tidy
@@ -23,7 +24,7 @@ import (
 
 const (
 	APP_NAME        = "gfind"
-	APP_VERSION     = "1.3.0"
+	APP_VERSION     = "1.3.1"
 	APP_DESCRIPTION = "Searching files in Go"
 )
 
