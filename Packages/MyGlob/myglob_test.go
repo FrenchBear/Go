@@ -228,6 +228,14 @@ func TestSearchErrors(t *testing.T) {
 				t.Error("Expected error for invalid regex, got nil")
 			}
 		})
+
+	t.Run("UnclosedBracket", func(t *testing.T) {
+		_, err := New(`C:\[Hello`).Compile()
+		if err == nil {
+			t.Error("Expected error for invalid regex, got nil")
+		}
+	})
+
 }
 
 // -----------------------------------------------------------------------------

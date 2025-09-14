@@ -7,6 +7,7 @@
 // 2025-08-18	PV 		1.3.0 SetChannelSize method
 // 2025-09-07	PV 		1.4.0 MaxDepth; IsConstant removed
 // 2025-09-08	PV 		1.5.0 Replaced stack by a queue for more natural output order
+// 2025-09-13   PV      1.5.1 Check for unclosed brackets in glob expressions such as "C:\[a-z"
 
 package MyGlob
 
@@ -20,7 +21,7 @@ import (
 )
 
 const (
-	LIB_VERSION = "1.5.0"
+	LIB_VERSION = "1.5.1"
 )
 
 // Segment is an interface for a segment of a glob pattern.
@@ -237,6 +238,7 @@ func globToSegments(globPattern string) ([]Segment, error) {
 	regexBuffer := ""
 	constantBuffer := ""
 	braceDepth := 0
+	inBrackets := false
 	iter := []rune(globPattern)
 	i := 0
 
@@ -293,7 +295,7 @@ func globToSegments(globPattern string) ([]Segment, error) {
 			constantBuffer = ""
 		case '[':
 			regexBuffer += "["
-			depth := 1
+			inBrackets = true
 			if i < len(iter) && iter[i] == '!' {
 				i++
 				regexBuffer += "^"
@@ -305,10 +307,8 @@ func globToSegments(globPattern string) ([]Segment, error) {
 				switch innerC {
 				case ']':
 					regexBuffer += "]"
-					depth--
-					if depth == 0 {
-						break bracketLoop
-					}
+					inBrackets = false
+					break bracketLoop
 				case '\\':
 					if i < len(iter) {
 						regexBuffer += "\\" + string(iter[i])
@@ -325,6 +325,10 @@ func globToSegments(globPattern string) ([]Segment, error) {
 		default:
 			regexBuffer += string(c)
 		}
+	}
+
+	if inBrackets {
+		return nil, MyGlobError{"Unclosed ["}
 	}
 
 	if regexBuffer != "" {
@@ -348,7 +352,7 @@ type MyGlobMatch struct {
 	IsDir bool
 }
 
-type searchPendingData struct {
+type searchPendingDirToExplore struct {
 	path          string
 	depth         int
 	recurse       bool
@@ -376,9 +380,10 @@ func (gs *MyGlobSearch) Explore() <-chan MyGlobMatch {
 		}
 
 		queue := list.New()
-		queue.PushBack(searchPendingData{path: gs.root, depth: 0})
+		queue.PushBack(searchPendingDirToExplore{path: gs.root, depth: 0})
+
 		for queue.Len() > 0 {
-			item := queue.Front().Value.(searchPendingData)
+			item := queue.Front().Value.(searchPendingDirToExplore)
 			queue.Remove(queue.Front())		// Need to call remove, there is no PopFront
 			// It's a O(1) operation since queue is actially a dequeue. Remove takes an element pointer, so it just
 			// needs to update next/previous pointers of previous/next elements
@@ -401,7 +406,7 @@ func (gs *MyGlobSearch) Explore() <-chan MyGlobMatch {
 						}
 					} else {
 						if fi.IsDir() {
-							queue.PushBack(searchPendingData{path: newPath, depth: item.depth + 1})
+							queue.PushBack(searchPendingDirToExplore{path: newPath, depth: item.depth + 1})
 						}
 					}
 				}
@@ -424,14 +429,14 @@ func (gs *MyGlobSearch) Explore() <-chan MyGlobMatch {
 								}
 							}
 							if !isIgnored {
-								queue.PushBack(searchPendingData{path: p, depth: item.depth, recurse: true, recurse_depth: item.recurse_depth + 1})
+								queue.PushBack(searchPendingDirToExplore{path: p, depth: item.depth, recurse: true, recurse_depth: item.recurse_depth + 1})
 							}
 						}
 					}
 				}
 
 			case RecurseSegment:
-				queue.PushBack(searchPendingData{path: item.path, depth: item.depth + 1, recurse: true, recurse_depth: 0})
+				queue.PushBack(searchPendingDirToExplore{path: item.path, depth: item.depth + 1, recurse: true, recurse_depth: 0})
 
 			case FilterSegment:
 				var dirs []string
@@ -459,7 +464,7 @@ func (gs *MyGlobSearch) Explore() <-chan MyGlobMatch {
 									if item.depth == len(gs.segments)-1 {
 										ch <- MyGlobMatch{Path: newPath, IsDir: true}
 									} else {
-										queue.PushBack(searchPendingData{path: newPath, depth: item.depth + 1})
+										queue.PushBack(searchPendingDirToExplore{path: newPath, depth: item.depth + 1})
 									}
 								}
 							}
@@ -473,7 +478,7 @@ func (gs *MyGlobSearch) Explore() <-chan MyGlobMatch {
 				}
 				if item.recurse && (gs.maxDepth==0 || item.recurse_depth < gs.maxDepth) {
 					for _, dir := range dirs {
-						queue.PushBack(searchPendingData{path: dir, depth: item.depth, recurse: true, recurse_depth: item.recurse_depth + 1})
+						queue.PushBack(searchPendingDirToExplore{path: dir, depth: item.depth, recurse: true, recurse_depth: item.recurse_depth + 1})
 					}
 				}
 			}
