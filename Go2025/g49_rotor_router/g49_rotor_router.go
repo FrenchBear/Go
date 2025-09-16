@@ -4,6 +4,8 @@
 //
 // 2025-09-16	PV		First version in Go
 
+// WOTAN on 2025-09-16: Done for 70000 iterations in 11.433s
+
 package main
 
 import (
@@ -36,7 +38,7 @@ func main() {
 	for i := 0; i < n; i++ {
 		x:=r
 		y:=r
-Loop:
+InnerLoop:
 		for {
 			switch img.At(x,y) {
 				case col0:
@@ -53,7 +55,7 @@ Loop:
 					x--
 				default:
 					img.Set(x,y,col0)
-					break Loop
+					break InnerLoop
 			}
 		}
 	}
