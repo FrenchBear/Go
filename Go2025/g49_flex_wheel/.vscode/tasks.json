@@ -1,0 +1,44 @@
+{
+	"version": "2.0.0",
+	"tasks": [
+        {
+            "type": "go",
+            "label": "go: build workspace",
+            "command": "build",
+            "args": [
+                "${workspaceFolder}"
+            ],
+            "problemMatcher": [
+                "$go"
+            ],
+            "group": {
+                "kind": "build",
+                "isDefault": true
+            }
+        },
+        {
+            "label": "go: run .exe",
+            "type": "process",
+            "command": "${workspaceFolder}\\${workspaceFolderBasename}.exe",
+            "problemMatcher": []
+        },
+        {
+            "label": "go: clean",
+            "type": "shell",
+            "command": "del ${workspaceFolder}\\${workspaceFolderBasename}.exe",
+            "problemMatcher": []
+        },
+        {
+            "type": "go",
+            "label": "go: test workspace",
+            "command": "test",
+            "args": [
+                "./..."
+            ],
+            "problemMatcher": [
+                "$go"
+            ],
+            "group": "test",
+        }
+    ]
+}
