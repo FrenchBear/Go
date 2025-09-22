@@ -39,16 +39,16 @@ func header() {
 func usage() {
 	header()
 	fmt.Println()
-	text := `⌊Usage⌋: {APP_NAME} ¬[⦃?⦄|⦃-?⦄|⦃-h⦄|⦃??⦄|⦃-??⦄] [⦃-i⦄] [⦃-w⦄] [⦃-F⦄] [⦃-a+⦄|⦃-a-⦄] [⦃-v⦄] [⦃-c⦄] [⦃-l⦄] ⟨pattern⟩ [⟨source⟩...]
+	text := `⌊Usage⌋: {APP_NAME} ¬[⦃?⦄|⦃-?⦄|⦃-h⦄|⦃??⦄|⦃-??⦄] [⦃-i⦄] [⦃-w⦄] [⦃-F⦄] [⦃-v⦄] [⦃-t⦄] [⦃-c⦄] [⦃-l⦄] ⟨pattern⟩ [⟨source⟩...]
 
 ⌊Options⌋:
 ⦃?⦄|⦃-?⦄|⦃-h⦄  ¬Show this message
 ⦃??⦄|⦃-??⦄   ¬Show advanced usage notes
-⦃-v⦄       ¬Verbose output
 ⦃-i⦄       ¬Ignore case during search
 ⦃-w⦄       ¬Whole word search
 ⦃-F⦄       ¬Fixed string search (no regexp interpretation), also for patterns starting with - ? or help
-⦃-a+⦄|⦃-a-⦄  ¬Enable (default) or disable glob autorecurse mode (see extended usage)
+⦃-v⦄       ¬Invert the sense of matching, to select non-matching lines
+⦃-t⦄       ¬Show execution time
 ⦃-c⦄       ¬Suppress normal output, show count of matching lines for each file
 ⦃-l⦄       ¬Suppress normal output, show matching file names only
 ⟨pattern⟩  ¬Regular expression to search
@@ -68,6 +68,9 @@ func extendedUsage() {
 	fmt.Println()
 
 	text := `⟪⌊Advanced usage notes⌋⟫
+
+⌊Extended options⌋:
+⦃-a+⦄|⦃-a-⦄  ¬Enable (default) or disable glob autorecurse mode (see extended usage)
 
 Options ⦃-c⦄ (show count of matching lines) and ⦃-l⦄ (show matching file names only) can be used together to show matching lines count only for matching files.
 Put special characters such as ⟦.⟧, ⟦*⟧ or ⟦?⟧ between brackets such as ⟦[.]⟧, ⟦[*]⟧ or ⟦[?]⟧ to search them as is.
@@ -100,7 +103,7 @@ func NewOptions() (*Options, error) {
 	autorecurseMinus := flag.Bool("a-", false, "Synonym for -a -")
 	flag.BoolVar(&ShowMatchCount, "c", false, "Show count of matching lines for each file")
 	flag.BoolVar(&ShowMatchPath, "l", false, "Show matching file names only")
-	flag.BoolVar(&options.Verbose, "v", false, "Verbose output")
+	flag.BoolVar(&options.Verbose, "t", false, "Show execution time")
 
 	flag.Parse()
 

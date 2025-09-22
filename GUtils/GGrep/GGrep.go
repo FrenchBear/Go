@@ -2,6 +2,7 @@
 //
 // 2025-08-13 	PV 		First version
 // 2025-08-18	PV 		1.1 Process files while enumerating; use MyGlob.SetChannelSize(25) to speed up globbing
+// 2025-09-22   PV      Option -v -> -t to show execution time. Option -v to invert the sense of matching, to select non-matching lines
 
 package main
 
@@ -19,7 +20,7 @@ import (
 
 const (
 	APP_NAME        = "ggrep"
-	APP_VERSION     = "1.1.0"
+	APP_VERSION     = "1.2.0"
 	APP_DESCRIPTION = "Grep utility in Go"
 )
 
@@ -51,7 +52,7 @@ func main() {
 	file_to_process := ""
 	b := DataBag{}
 	for _, source := range options.Sources {
-		gs, err := MyGlob.New(source).Autorecurse(options.Autorecurse).SetChannelSize(25).Compile()
+		gs, err := MyGlob.New(source).Autorecurse(options.Autorecurse).ChannelSize(25).Compile()
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "%s: Error building MyGlob: %v\n", APP_NAME, err)
 			continue
