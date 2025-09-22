@@ -2,7 +2,8 @@
 // Iterates over lines of a text matching some pattern
 // Returns a GrepLineMatches object for each line with at least a match, containing all matches of the line
 //
-// 2025-08-13   PV (converted from Rust by Gemini)
+// 2025-08-13   PV 		Converted from Rust by Gemini
+// 2025-09-22   PV      GrepInvert iterator to invert the sense of matching, to select non-matching lines
 
 package main
 
@@ -101,5 +102,35 @@ func Grep(txt string, re *regexp.Regexp) <-chan GrepLineMatches {
 	}()
 
 	// Return the channel to the caller.
+	return ch
+}
+
+// GrepInvert iterates over a text, finds lines NOT matching the given regular expression,
+// and returns a channel that yields each non-matching line.
+func GrepInvert(txt string, re *regexp.Regexp) <-chan GrepLineMatches {
+	ch := make(chan GrepLineMatches)
+
+	go func() {
+		defer close(ch)
+
+		// Split the text into lines
+		lines := strings.Split(txt, "\n")
+
+		for _, line := range lines {
+			// Trim trailing carriage return if present
+			line = strings.TrimRight(line, "\r")
+
+			// If the line does not match the regex, send it.
+			if !re.MatchString(line) {
+				// For inverted matches, we send the whole line without specific ranges.
+				// The Ranges slice is empty.
+				ch <- GrepLineMatches{
+					Line:   line,
+					Ranges: []GrepMatchRange{},
+				}
+			}
+		}
+	}()
+
 	return ch
 }

@@ -178,7 +178,14 @@ func processText(b *DataBag, re *regexp.Regexp, txt, path string, options *Optio
 		const BoldRed string = "\033[1;31m"
 		const NormalColor string = "\033[0;37m"
 
-		for gi := range Grep(txt, re) {
+		var iter <-chan GrepLineMatches
+		if options.InvertMatch {
+			iter = GrepInvert(txt, re)
+		} else {
+			iter = Grep(txt, re)
+		}
+
+		for gi := range iter {
 			matchlinecount++
 
 			if options.OutLevel == 1 {
@@ -186,7 +193,12 @@ func processText(b *DataBag, re *regexp.Regexp, txt, path string, options *Optio
 				return
 			}
 
-			if options.OutLevel == 0 {
+			if options.OutLevel == 0 && options.InvertMatch {
+				if options.ShowPath {
+					fmt.Printf("%s%s:%s ", BrightBlack, path, NormalColor)
+				}
+				fmt.Println(gi.Line)
+			} else if options.OutLevel == 0 {
 				if options.ShowPath {
 					fmt.Printf("%s%s:%s ", BrightBlack, path, NormalColor)
 				}
@@ -202,8 +214,15 @@ func processText(b *DataBag, re *regexp.Regexp, txt, path string, options *Optio
 			}
 		}
 	} else {
+		var iter <-chan GrepLineMatches
+		if options.InvertMatch {
+			iter = GrepInvert(txt, re)
+		} else {
+			iter = Grep(txt, re)
+		}
+
 		// Not a tty, monochrome output
-		for gi := range Grep(txt, re) {
+		for gi := range iter {
 			matchlinecount++
 
 			if options.OutLevel == 1 {

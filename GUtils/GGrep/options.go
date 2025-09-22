@@ -1,7 +1,8 @@
-// gwc options.go
+// options.go
 // Parse and validate command line options, returning a clean Options struct
 //
 // 2025-07-10	PV 		First version
+// 2025-09-22   PV      Option -v -> -t to show execution time. Option -v to invert the sense of matching, to select non-matching lines
 
 package main
 
@@ -22,6 +23,7 @@ type Options struct {
 	IgnoreCase     bool
 	WholeWord      bool
 	FixedString    bool
+	InvertMatch    bool
 	OutLevel       int
 	ShowPath       bool 	// Set to true by main if there is more than 1 file to search from
 	Autorecurse    bool
@@ -98,6 +100,7 @@ func NewOptions() (*Options, error) {
 	flag.BoolVar(&options.IgnoreCase, "i", false, "Ignore case during search")
 	flag.BoolVar(&options.WholeWord, "w", false, "Whole word search")
 	flag.BoolVar(&options.FixedString, "F", false, "Fixed string search")
+	flag.BoolVar(&options.InvertMatch, "v", false, "Invert the sense of matching, to select non-matching lines")
 	autorecurseStr := flag.String("a", "+", "Enable (+) or disable (-) glob autorecurse mode")
 	autorecursePlus := flag.Bool("a+", false, "Synonym for -a +")
 	autorecurseMinus := flag.Bool("a-", false, "Synonym for -a -")

@@ -1,6 +1,7 @@
 // Tests for GGrep
 //
 // 2025-07-10 	PV 		First version
+// 2025-09-11 	PV 		TestGrepInvertIterator
 
 package main
 
@@ -50,4 +51,23 @@ Final line without the word.`
 	assert_eq(t, lm.Ranges[1].End, 35)
 	assert_eq(t, lm.Ranges[2].Start, 44)
 	assert_eq(t, lm.Ranges[2].End, 46)
+}
+
+func TestGrepInvertIterator(t *testing.T) {
+	text := `Go is a statically typed, compiled programming language designed at Google.
+Its syntax is loosely based on C, but with memory safety, garbage collection,
+structural typing, and CSP-style concurrency. The language is often referred to as Golang.
+This is another line about go or GO or even gO.
+Final line without the word.`
+
+	// Compile the regex. (?i) makes it case-insensitive.
+	re := regexp.MustCompile(`(?im)go`)
+
+	ch := GrepInvert(text, re)
+
+	lm := <-ch
+	assert_eq(t, lm.Line, "Its syntax is loosely based on C, but with memory safety, garbage collection,")
+
+	lm = <-ch
+	assert_eq(t, lm.Line, "Final line without the word.")
 }
